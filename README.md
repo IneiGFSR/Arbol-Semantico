@@ -1,3 +1,11 @@
+<p align="center">
+  <img src="https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white" alt="HTML5">
+  <img src="https://img.shields.io/badge/CSS3-1572B6?style=flat&logo=css3&logoColor=white" alt="CSS3">
+  <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=flat&logo=javascript&logoColor=black" alt="JavaScript">
+  <img src="https://img.shields.io/badge/backend-ninguno-111111" alt="Sin backend">
+  <img src="https://img.shields.io/badge/pruebas-120%2F120-2ecc71" alt="120/120 pruebas pasando">
+</p>
+
 # Motor de inferencia proposicional
 
 Proyecto para la misión "Del lenguaje natural al árbol semántico" (materia de Inteligencia Artificial).
@@ -7,6 +15,12 @@ Convierte reglas escritas en español a lógica proposicional y construye el ár
 ## Cómo correrlo
 
 No necesita instalación ni servidor: se abre `index.html` directamente en el navegador.
+
+## Capturas
+
+| 1. Escribe la base de conocimiento | 2. Traducción a lógica y resultado | 3. El árbol, paso a paso |
+| --- | --- | --- |
+| ![Editor con el caso del profesor](docs/capturas/paso1-entrada.png) | ![Resultado: la base de conocimiento es consistente](docs/capturas/paso2-resultado.png) | ![Árbol semántico construyéndose paso a paso](docs/capturas/paso3-arbol.png) |
 
 ## Qué ofrece la interfaz
 
@@ -29,17 +43,6 @@ y una revisión de la página real con el caso del video. Se abre desde el pie d
 («Ver las pruebas del motor»). Necesita servirse desde un servidor (o la URL pública), no como archivo suelto,
 porque revisa `index.html` dentro de un iframe.
 
-## Cambiar la tipografía
-
-La interfaz usa **SF Pro** en los dispositivos que ya la tienen (Mac, iPhone, iPad) y **Inter** como respaldo en los demás, cargada desde Google Fonts.
-
-La fuente está definida en `--font` y `--font-display` (al inicio de `css/estilos.css`). Para cambiar la de respaldo:
-
-1. En `index.html`, reemplaza `family=Inter:wght@400;500;600;700` del enlace de Google Fonts (aparece dos veces: en el `<link>` y en el `<noscript>`) por la fuente nueva.
-2. En `css/estilos.css`, cambia `"Inter"` por el nombre de la fuente en `--font`.
-
-Las fórmulas tienen sus propias fuentes (`--font-math` y `--font-formula`) y no cambian.
-
 ## Estructura
 
 - `index.html` — estructura de la página.
@@ -47,5 +50,6 @@ Las fórmulas tienen sus propias fuentes (`--font-math` y `--font-formula`) y no
 - `js/motor.js` — lógica pura: parser de lenguaje natural, registro de átomos y algoritmo del árbol semántico. No toca el DOM.
 - `js/interfaz.js` — conecta `motor.js` con la pantalla (lee el textarea, pinta tabla, reglas y árbol).
 - `docs/especificacion.md` — explicación en teoría de la gramática y el algoritmo usados.
+- `docs/capturas/` — capturas de pantalla usadas en este README.
 - `examples/casos-prueba.txt` — conjuntos de reglas de ejemplo para probar la herramienta.
 - `assets/favicon.svg` — ícono del proyecto.

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000" id="themeColor">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Escribe reglas en español y obtén sus fórmulas lógicas y el árbol semántico que decide si la base de conocimiento es consistente.">
+  <!-- vista previa al compartir el enlace (WhatsApp, Classroom, etc.) -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Motor de inferencia proposicional">
+  <meta property="og:description" content="Del lenguaje natural al árbol semántico: escribe reglas en español y comprueba si son consistentes.">
+  <meta property="og:locale" content="es_MX">
+  <title>Motor de inferencia proposicional</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Fuentes: solo los pesos que se usan. Se cargan sin bloquear el primer pintado
+       (media="print" -> "all" al terminar). La interfaz usa SF Pro si el dispositivo
+       ya la tiene; Inter es el respaldo (ver --font en css/estilos.css).
+       STIX Two Text y JetBrains Mono son de las formulas. -->
+  <link rel="stylesheet" media="print" onload="this.media='all'"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=STIX+Two+Text:ital,wght@0,500;0,600;1,600&family=JetBrains+Mono:wght@400&display=swap">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=STIX+Two+Text:ital,wght@0,500;0,600;1,600&family=JetBrains+Mono:wght@400&display=swap"></noscript>
+  <link rel="stylesheet" href="css/estilos.css">
+  <!-- Antes de pintar: marca que hay JS (para las animaciones de entrada) y aplica
+       el tema guardado o, si no hay, el del sistema. Asi nunca se ve un destello
+       del tema equivocado al cargar. -->
+  <script>
+    (function () {
+      var d = document.documentElement, t = null;
+      d.classList.add("js");
+      try { t = localStorage.getItem("tema"); } catch (e) {}
+      if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+      d.dataset.theme = t;
+    })();
+  </script>
+</head>
+<body>
+
+  <a class="skip-link" href="#editor">Saltar al editor</a>
+
+  <!-- ===== barra de navegacion fija (estilo Apple: translucida con desenfoque) ===== -->
+  <nav class="nav" id="nav">
+    <div class="nav-inner">
+      <a href="#top" class="brand"><img src="assets/favicon.svg" alt="" width="20" height="20"><span>Árbol semántico</span></a>
+      <div class="nav-links">
+        <a href="#editor">Probar</a>
+        <a href="#resultado">Resultado</a>
+        <a href="#arbol-sec">Árbol</a>
+        <a href="#como">Cómo funciona</a>
+      </div>
+      <button class="icon-btn sm theme-btn" id="btnTema" type="button" aria-label="Cambiar a tema claro" title="Cambiar tema">
+        <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.2A8.5 8.5 0 1 1 9.8 3.5a6.8 6.8 0 0 0 10.7 10.7z"/></svg>
+        <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
+      </button>
+      <a class="nav-cta" href="#editor">Empezar</a>
+    </div>
+    <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+  </nav>
+
+  <!-- ===== portada ===== -->
+  <header class="hero" id="top">
+    <div class="hero-content" id="heroContent">
+      <p class="eyebrow reveal">Lógica I · Motor de inferencia</p>
+      <h1 class="hero-title reveal">Del lenguaje natural<br><span class="grad">al árbol semántico.</span></h1>
+      <p class="hero-sub reveal">Escribe reglas en español. El motor las traduce a lógica proposicional, construye el árbol y te dice si todas pueden ser verdaderas al mismo tiempo.</p>
+      <div class="hero-cta reveal">
+        <a class="btn btn-primary" href="#editor">Probar ahora</a>
+        <a class="link-more" href="#como">Cómo funciona <span aria-hidden="true">›</span></a>
+      </div>
+    </div>
+
+    <!-- arbol decorativo que se "dibuja" solo al cargar -->
+    <svg class="hero-tree reveal" viewBox="0 0 560 300" role="img" aria-label="Ejemplo de árbol semántico: dos ramas cerradas y una abierta">
+      <g class="ht-lines">
+        <path d="M280 62 C280 92 170 92 170 122" />
+        <path d="M280 62 C280 92 390 92 390 122" />
+        <path d="M390 160 C390 190 320 190 320 220" />
+        <path d="M390 160 C390 190 460 190 460 220" />
+      </g>
+      <g class="ht-nodes">
+        <g class="ht-node" style="--d:0s"><rect x="150" y="18" width="260" height="44" rx="14"/><text x="280" y="46"><tspan class="a0">p</tspan> → <tspan class="a1">q</tspan><tspan class="sep">,</tspan> <tspan class="a2">r</tspan> → <tspan class="neg">¬</tspan><tspan class="a1">q</tspan><tspan class="sep">,</tspan> <tspan class="a0">p</tspan></text></g>
+        <g class="ht-node" style="--d:.9s"><rect x="130" y="122" width="80" height="38" rx="12"/><text x="170" y="147"><tspan class="neg">¬</tspan><tspan class="a0">p</tspan></text></g>
+        <g class="ht-node" style="--d:.9s"><rect x="350" y="122" width="80" height="38" rx="12"/><text x="390" y="147"><tspan class="a1">q</tspan></text></g>
+        <g class="ht-node" style="--d:1.8s"><rect x="280" y="220" width="80" height="38" rx="12"/><text x="320" y="245"><tspan class="neg">¬</tspan><tspan class="a2">r</tspan></text></g>
+        <g class="ht-node" style="--d:1.8s"><rect x="420" y="220" width="80" height="38" rx="12"/><text x="460" y="245"><tspan class="neg">¬</tspan><tspan class="a1">q</tspan></text></g>
+        <g class="ht-mark bad" style="--d:1.3s"><circle cx="170" cy="190" r="15"/><text x="170" y="196">✗</text></g>
+        <g class="ht-mark good" style="--d:2.3s"><circle cx="320" cy="285" r="13"/><text x="320" y="290">✓</text></g>
+        <g class="ht-mark bad" style="--d:2.3s"><circle cx="460" cy="285" r="13"/><text x="460" y="290">✗</text></g>
+      </g>
+    </svg>
+
+    <a class="scroll-cue" href="#editor" aria-label="Bajar al editor"><span></span></a>
+  </header>
+
+  <main>
+
+    <!-- ===== Paso 1: entrada (Piezas 1 y 2) ===== -->
+    <section class="section" id="editor">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="eyebrow">Paso 1</p>
+          <h2 class="section-title">Escribe tu base de conocimiento.</h2>
+          <p class="section-sub">Una regla o hecho por línea. El motor reconoce «y», «o», «no», «si… entonces» y «si y solo si».</p>
+        </div>
+
+        <div class="editor-card reveal">
+          <div class="editor-top">
+            <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="editor-title">base-de-conocimiento.txt</span>
+            <span class="editor-meta" id="editorMeta"></span>
+          </div>
+          <div class="editor-body">
+            <div class="gutter" id="gutter" aria-hidden="true"></div>
+            <textarea id="entrada" spellcheck="false" wrap="off" aria-label="Base de conocimiento, una regla por línea" aria-describedby="avisos" placeholder="Si llueve, entonces no salgo&#10;Llueve"></textarea>
+          </div>
+          <!-- avisos de reglas que probablemente no se escribieron como se queria -->
+          <div class="warnings" id="avisos" aria-live="polite" hidden></div>
+          <div class="editor-bottom">
+            <div class="chips" id="ejemplos" aria-label="Ejemplos"></div>
+            <div class="actions">
+              <button class="btn btn-ghost" id="btnLimpiar" type="button">Limpiar</button>
+              <button class="btn btn-ghost" id="btnCompartir" type="button">Copiar enlace</button>
+              <button class="btn btn-primary" id="btnAnalizar" type="button">Construir árbol</button>
+            </div>
+          </div>
+        </div>
+        <p class="kbd-hint reveal">Se actualiza mientras escribes · <kbd>Ctrl</kbd> + <kbd>Enter</kbd> para ver el resultado</p>
+      </div>
+    </section>
+
+    <!-- ===== Paso 2: resultado (Pieza 4) ===== -->
+    <section class="section section-alt" id="resultado">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="eyebrow">Paso 2</p>
+          <h2 class="section-title">La traducción a lógica.</h2>
+          <p class="section-sub">Pasa el cursor (o toca) una letra para ver dónde aparece esa proposición.</p>
+        </div>
+
+        <p id="vacio" class="empty" hidden></p>
+
+        <div id="resultados">
+          <div class="verdict reveal" id="veredicto" aria-live="polite"></div>
+          <div class="stats reveal" id="stats"></div>
+
+          <div class="card reveal">
+            <div class="card-head">
+              <h3 class="card-title">Tabla de átomos</h3>
+              <p class="card-sub">Cada proposición simple recibe una letra. La misma idea siempre conserva su letra.</p>
+            </div>
+            <div class="atoms" id="tbodyAtomos"></div>
+          </div>
+
+          <div class="card reveal">
+            <div class="card-head">
+              <h3 class="card-title">Reglas y fórmulas</h3>
+              <p class="card-sub">Partimos de que todas las reglas son verdaderas.</p>
+            </div>
+            <div class="rules" id="listaReglas"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Paso 3: arbol semantico (Pieza 3) ===== -->
+    <section class="section" id="arbol-sec">
+      <div class="container wide">
+        <div class="section-head reveal">
+          <p class="eyebrow">Paso 3</p>
+          <h2 class="section-title">El árbol, paso a paso.</h2>
+          <p class="section-sub">Cada fórmula se desarrolla en las ramas que tiene debajo. Reprodúcelo para ver el orden exacto.</p>
+        </div>
+
+        <div class="tree-card reveal">
+          <div class="tree-toolbar">
+            <div class="player" role="group" aria-label="Reproducción">
+              <button class="icon-btn" id="btnPrev" type="button" aria-label="Paso anterior">
+                <svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>
+              </button>
+              <button class="icon-btn play" id="btnPlay" type="button" aria-label="Reproducir">
+                <svg class="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg>
+                <svg class="i-pause" viewBox="0 0 24 24"><path d="M8 5h3v14H8zM13 5h3v14h-3z"/></svg>
+              </button>
+              <button class="icon-btn" id="btnNext" type="button" aria-label="Paso siguiente">
+                <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+              </button>
+              <button class="pill-btn" id="btnTodo" type="button">Ver todo</button>
+            </div>
+            <div class="zoom" role="group" aria-label="Zoom">
+              <button class="icon-btn sm" id="btnZoomOut" type="button" aria-label="Alejar">−</button>
+              <span id="zoomVal">100%</span>
+              <button class="icon-btn sm" id="btnZoomIn" type="button" aria-label="Acercar">+</button>
+              <button class="pill-btn" id="btnAjustar" type="button">Ajustar</button>
+            </div>
+          </div>
+          <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+          <p class="step-caption" id="stepCaption" aria-live="polite"></p>
+
+          <div class="tree-scroll" id="treeScroll">
+            <ul class="tree" id="arbol"></ul>
+          </div>
+
+          <div class="legend">
+            <span><i class="lg-check">✓</i> fórmula ya aplicada</span>
+            <span><i class="lg-bad">✗</i> rama cerrada</span>
+            <span><i class="lg-good">✓</i> rama abierta</span>
+            <span><b>α</b> no ramifica · <b>β</b> ramifica</span>
+            <span class="legend-keys"><kbd>←</kbd> <kbd>→</kbd> pasos · <kbd>Espacio</kbd> reproducir</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Paso 4: modelos ===== -->
+    <section class="section section-alt" id="modelos-sec">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="eyebrow">Paso 4</p>
+          <h2 class="section-title">Las ramas abiertas.</h2>
+          <p class="section-sub">Cada rama abierta es una asignación de valores que hace verdaderas todas las reglas.</p>
+        </div>
+        <div id="modelos" class="models reveal"></div>
+        <div class="export reveal">
+          <button class="btn btn-ghost" id="btnImprimir" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V3.5h10V9M7 17.5H4.5v-7A1.5 1.5 0 0 1 6 9h12a1.5 1.5 0 0 1 1.5 1.5v7H17M7 14h10v6.5H7z"/></svg>
+            Imprimir o guardar en PDF
+          </button>
+          <p>Incluye la tabla de átomos, las fórmulas, el árbol completo y los modelos.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== como funciona: conectivos y reglas de expansion ===== -->
+    <section class="section" id="como">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="eyebrow">Cómo funciona</p>
+          <h2 class="section-title">Cinco conectivos.<br><span class="muted">Nueve reglas.</span></h2>
+          <p class="section-sub">El motor busca estas palabras en cada regla y las convierte en su símbolo.</p>
+        </div>
+        <div class="connectives" id="conectivos"></div>
+
+        <div class="ref-group also reveal">
+          <h3 class="ref-title">También entiende</h3>
+          <p class="ref-sub">Otras formas comunes de decir lo mismo. Los acentos y las mayúsculas no cambian el átomo.</p>
+          <div class="also-grid" id="tambien"></div>
+        </div>
+
+        <div class="rules-ref">
+          <div class="ref-group reveal">
+            <h3 class="ref-title"><span class="ref-badge alpha">α</span> No ramifican</h3>
+            <p class="ref-sub">Lo que sale se agrega a la misma rama.</p>
+            <div class="ref-grid" id="refAlpha"></div>
+          </div>
+          <div class="ref-group reveal">
+            <h3 class="ref-title"><span class="ref-badge beta">β</span> Ramifican</h3>
+            <p class="ref-sub">El árbol se parte en dos caminos.</p>
+            <div class="ref-grid" id="refBeta"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p>Misión «Del lenguaje natural al árbol semántico» · Basado en la playlist de
+        <a href="https://www.youtube.com/watch?v=n_kJVVfACfQ&amp;list=PLsA8MQOz_v_dYuKqYemSOxi9yv750J2ku" target="_blank" rel="noopener">Lógica I de la Mtra. Yolanda Torres Falcón</a>.</p>
+      <p><a href="tests/pruebas.html">Ver las pruebas del motor</a></p>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <!-- motor.js: logica pura (Piezas 1, 2, 3). interfaz.js: conecta con la pantalla (Pieza 4) -->
+  <script src="js/motor.js" defer></script>
+  <script src="js/interfaz.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+# Casos de prueba para el motor de inferencia
+# Cada bloque es una base de conocimiento distinta (una regla por linea).
+# Separados por lineas en blanco.
+
+# --- Caso 1: el ejemplo de la profesora (caso de referencia) ---
+# Esperado: 2 ramas cerradas, 1 abierta, modelo p=V, q=V, r=F
+Si es de día, entonces voy a trabajar
+Si llueve, entonces no voy a trabajar
+Es de día
+
+# --- Caso 2: contradiccion directa ---
+# Esperado: todas las ramas cerradas (inconsistente)
+Llueve
+No llueve
+
+# --- Caso 3: mismo atomo repetido en dos reglas ---
+# Esperado: "llueve" y "hace frío, entonces voy a trabajar" comparten la letra de "voy a trabajar"
+Si llueve, entonces voy a trabajar
+Si hace frío, entonces voy a trabajar
+Llueve
+
+# --- Caso 4: conectores y / o combinados ---
+Si llueve y hace frío, entonces no salgo
+Llueve
+Hace frío
+
+# --- Caso 5: bicondicional ---
+Apruebo si y solo si estudio
+Estudio
+
+# --- Caso 6: disyuncion con negacion ---
+Es de día o llueve
+No es de día

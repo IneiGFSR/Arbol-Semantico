@@ -68,6 +68,7 @@
   --grad:linear-gradient(92deg, #f0757a 0%, #d63a44 38%, #b22222 62%, #8e3a8c 100%);
   --v-ok-top:#7dffa0;
   --v-bad-top:#f4a5a9;
+  --card-shadow:none;      /* sobre negro las tarjetas se separan por color, no por sombra */
 
   /* fuente de la interfaz: SF Pro si el dispositivo ya la tiene (Mac, iPhone,
      iPad, o quien la haya instalado); si no, Inter (de Google Fonts), que es
@@ -95,22 +96,22 @@
 :root[data-theme="light"]{
   color-scheme: light;
 
-  --bg:#fbfbfd;
-  --bg-alt:#f5f5f7;
+  --bg:#fdfcfd;
+  --bg-alt:#eeedf1;
   --surface:#ffffff;
-  --surface-2:#f5f5f7;
-  --surface-3:#e8e8ed;
-  --border:rgba(0,0,0,.08);
-  --border-strong:rgba(0,0,0,.14);
-  --line:#c7c7cc;
-  --fg:#1d1d1f;
-  --fg-2:#424245;
-  --fg-muted:#6e6e73;
+  --surface-2:#f4f3f6;
+  --surface-3:#e4e3e9;
+  --border:rgba(0,0,0,.1);
+  --border-strong:rgba(0,0,0,.2);
+  --line:#a9a9b0;
+  --fg:#111113;
+  --fg-2:#38383c;
+  --fg-muted:#5e5e66;
 
   --accent:#b22222;
   --accent-strong:#b22222;
   --accent-hover:#9c1d1d;
-  --accent-soft:rgba(178,34,34,.09);
+  --accent-soft:rgba(178,34,34,.11);
 
   --good:#1d8a3c;
   --good-soft:rgba(29,138,60,.09);
@@ -139,8 +140,9 @@
   --link:#0066cc;
   --play-hover:#000;
   --chip-on-fg:#8f1b1b;
-  --hero-glow:rgba(178,34,34,.13);
-  --hero-glow-2:rgba(0,102,204,.07);
+  --hero-glow:rgba(178,34,34,.24);
+  --hero-glow-2:rgba(0,102,204,.12);
+  --card-shadow:0 1px 2px rgba(30,10,15,.05), 0 14px 34px -18px rgba(70,20,30,.22);
   --grad:linear-gradient(92deg, #d4434d 0%, #b22222 45%, #8e1f3a 70%, #6e2f7c 100%);
   --v-ok-top:#34c759;
   --v-bad-top:#d9535b;
@@ -325,7 +327,7 @@ h1,h2,h3{ margin: 0; font-family: var(--font-display); }
 .dots i:nth-child(2){ background: #febc2e; } .dots i:nth-child(3){ background: #28c840; }
 .editor-title{ font-size: 13px; color: var(--fg-muted); font-family: var(--font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .editor-meta{ margin-left: auto; font-size: 12px; color: var(--fg-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.editor-body{ display: flex; position: relative; }
+.editor-body{ display: flex; position: relative; max-height: min(60vh, 520px); } /* con muchas reglas, scroll adentro */
 .gutter{
   flex: none; width: 52px; padding: 18px 0; overflow: hidden; text-align: right;
   font-family: var(--font); font-size: 13px; line-height: 28px; color: var(--fg-muted);
@@ -676,7 +678,7 @@ kbd{ font-family: var(--font); font-size: 11px; padding: 2px 6px; border-radius:
 @media (max-width: 760px){
   body{ font-size: 16px; }
   .nav-links{ gap: 16px; }
-  .nav-links a:nth-child(4){ display: none; }
+  .nav-links a:nth-child(n+4){ display: none; }
   .nav-cta{ display: none; }
   .stats{ grid-template-columns: repeat(2, 1fr); }
   .rule{ grid-template-columns: auto 1fr; gap: 10px 14px; }
@@ -775,6 +777,138 @@ kbd{ font-family: var(--font); font-size: 11px; padding: 2px 6px; border-radius:
   .btn-primary:hover::before, .nav-cta:hover::before{ animation: shine 2.8s var(--ease) infinite; }
 }
 
+/* ---------- tema claro: mas contraste y acentos ----------
+   Sobre negro las tarjetas resaltan solas; sobre blanco hacen falta sombra,
+   secciones de distinto tono y mas color en lo importante. */
+.card, .tree-card, .stat, .model, .conn, .ref-group, .verdict{ box-shadow: var(--card-shadow); }
+:root[data-theme="light"] .tok.atom:not(.meta){
+  background: color-mix(in srgb, var(--c) 17%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 48%, transparent);
+}
+:root[data-theme="light"] .tok.atom.hl:not(.meta){
+  background: color-mix(in srgb, var(--c) 30%, transparent);
+  box-shadow: inset 0 0 0 1.5px var(--c), 0 0 16px color-mix(in srgb, var(--c) 40%, transparent);
+}
+:root[data-theme="light"] .rule-id{ background: var(--accent-strong); color: #fff; }
+:root[data-theme="light"] .node-box{ box-shadow: 0 1px 2px rgba(30,10,15,.06), 0 12px 26px -16px rgba(70,20,30,.28); }
+:root[data-theme="light"] .verdict.ok{ background: linear-gradient(180deg, color-mix(in srgb, var(--good) 11%, #fff), #fff 70%); }
+:root[data-theme="light"] .verdict.bad{ background: linear-gradient(180deg, color-mix(in srgb, var(--bad) 11%, #fff), #fff 70%); }
+:root[data-theme="light"] .stat.good{ border-top: 3px solid var(--good); }
+:root[data-theme="light"] .stat.bad{ border-top: 3px solid var(--bad); }
+:root[data-theme="light"] .ht-node rect{ fill: #fff; filter: drop-shadow(0 6px 12px rgba(70,20,30,.12)); }
+:root[data-theme="light"] .footer{ background: #1d1d1f; color: #a1a1a6; border-top: 0; }
+:root[data-theme="light"] .footer a{ color: #f5f5f7; }
+
+/* ---------- arbol: trazabilidad, extras y version en texto ---------- */
+.fline.conflict{ background: var(--bad-soft); box-shadow: inset 0 0 0 1.5px var(--bad); }
+.leaf .traza{ font-weight: 400; font-size: 12px; color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+.step-caption .step-text .f + .f{ margin-left: 4px; }
+.pill-btn:disabled{ opacity: .4; cursor: default; }
+.tree-extra{ display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 14px; }
+.arbol-texto{
+  margin-top: 14px; padding: 18px 20px; border-radius: 18px; background: var(--surface-2); border: 1px solid var(--border);
+  font-size: 15px; line-height: 1.6; color: var(--fg-2); max-height: 60vh; overflow: auto;
+}
+.arbol-texto[hidden]{ display: none; }
+.arbol-texto p{ margin: 8px 0; }
+.arbol-texto ul, .arbol-texto ol{ margin: 4px 0; padding-left: 22px; }
+.arbol-texto b{ color: var(--fg); }
+.plano{ font-family: var(--font-formula); font-size: .92em; }
+
+/* ---------- tabla de verdad ---------- */
+.tt-card{ margin-top: 20px; margin-bottom: 0; }
+.tt-nota{ margin: 0 0 14px; font-size: 15px; color: var(--fg-2); }
+.tt-nota b{ color: var(--fg); }
+.tt-nota .good{ color: var(--good); font-weight: 600; } .tt-nota .bad{ color: var(--bad); font-weight: 600; }
+.tt-scroll{ overflow: auto; max-height: 62vh; border-radius: 14px; border: 1px solid var(--border); }
+.tt{ border-collapse: separate; border-spacing: 0; width: 100%; font-variant-numeric: tabular-nums; font-size: 14px; text-align: center; }
+.tt th{ position: sticky; top: 0; z-index: 1; background: var(--surface-2); padding: 8px 12px; font-weight: 600; white-space: nowrap; border-bottom: 1px solid var(--border-strong); }
+.tt th .f{ flex-wrap: nowrap; font-size: 13px; }
+.tt .tt-regla span:first-child{ display: block; font-size: 11px; color: var(--fg-muted); margin-bottom: 4px; }
+.tt td{ padding: 6px 12px; border-bottom: 1px solid var(--border); font-weight: 600; }
+.tt tr:last-child td{ border-bottom: 0; }
+.tt td.v{ color: var(--good); } .tt td.fa{ color: var(--fg-muted); font-weight: 400; }
+.tt tr.si td{ background: var(--good-soft); }
+
+/* ---------- historial y notacion ---------- */
+.historial{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 16px 14px 20px; border-top: 1px solid var(--border); }
+.historial[hidden]{ display: none; }
+.hist-etq{ font-size: 12px; font-weight: 600; color: var(--fg-muted); }
+.hist-n{ color: var(--fg-muted); font-size: 11px; }
+.hist-borrar{ margin-left: auto; background: none; border: 0; padding: 4px 6px; font-size: 12px; color: var(--fg-muted); cursor: pointer; text-decoration: underline; }
+.hist-borrar:hover{ color: var(--bad); }
+
+.notacion{ margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--border); }
+.notacion h4{ margin: 0 0 6px; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+.notacion p{ margin: 0 0 14px; color: var(--fg-muted); font-size: 15px; }
+.notacion code{ font-family: var(--font-formula); font-size: .92em; padding: 2px 6px; border-radius: 6px; background: var(--tint-2); color: var(--fg); white-space: nowrap; }
+.notacion-tabla{ display: flex; flex-wrap: wrap; gap: 10px 22px; }
+.notacion-tabla span{ display: inline-flex; gap: 6px; }
+
+.verdict.duda{ --glow: rgba(255,159,10,.3); }
+.verdict.duda .v-icon{ background: color-mix(in srgb, var(--a1) 14%, transparent); color: var(--a1); }
+
+/* ---------- tutorial ---------- */
+/* todo cabe en una pantalla: una animacion que obliga a hacer scroll no se puede seguir */
+.tut{ height: 100svh; min-height: 620px; padding: calc(var(--nav-h) + 14px) 0 16px; display: flex; flex-direction: column; }
+.tut-head{ text-align: center; }
+.tut-head .eyebrow{ margin-bottom: 2px; font-size: 13px; }
+.tut-title{ font-size: clamp(24px, 3.4vw, 34px); font-weight: 700; letter-spacing: -.03em; line-height: 1.1; }
+.tut-ejemplos{ display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
+.tut-capitulos{ display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 8px 0; padding: 0; list-style: none; }
+.tut-capitulos button{
+  border: 0; background: none; cursor: pointer; color: var(--fg-muted); font-size: 13px; font-weight: 500;
+  padding: 6px 12px; border-radius: 980px; transition: background .25s, color .25s;
+}
+.tut-capitulos button.on{ background: var(--accent-strong); color: #fff; }
+.tut-capitulos button:focus-visible{ outline: 3px solid rgba(41,151,255,.7); outline-offset: 2px; }
+.tut-panel{
+  flex: 1; display: flex; flex-direction: column; min-height: 0;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--card-shadow); overflow: hidden;
+}
+.tut-narracion{
+  flex: none; margin: 0; min-height: 4.2em; padding: 14px clamp(18px, 4vw, 34px) 12px; font-size: clamp(16px, 2vw, 19px); line-height: 1.4;
+  font-weight: 500; letter-spacing: -.01em; border-bottom: 1px solid var(--border);
+}
+.tut-narracion .f{ vertical-align: middle; }
+.tut-narracion b.good{ color: var(--good); } .tut-narracion b.bad{ color: var(--bad); }
+.tut-narracion .step-n{ display: none; }
+.tut-narracion.cambio{ animation: rise .5s var(--ease) both; }
+.tut-escena{ flex: 1; min-height: 0; padding: clamp(14px, 2.4vw, 24px); overflow: auto; display: flex; flex-direction: column; }
+/* margin:auto centra sin cortar el inicio cuando el contenido no cabe y hay que hacer scroll */
+.tut-escena > *{ margin-top: auto; margin-bottom: auto; }
+.tut-escena[hidden]{ display: none; }
+.tut-escena.arbol:not([hidden]){ padding: 0; display: block; background:
+  radial-gradient(circle at 1px 1px, var(--dot) 1px, transparent 0) 0 0 / 22px 22px, var(--bg-alt); }
+.tut-escena.arbol .tree{ padding: 22px 8px; }
+.tut-frases{ display: grid; gap: 10px; max-width: 720px; width: 100%; margin: 0 auto; }
+.tut-frase{
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px; padding: 14px 18px; border-radius: 16px;
+  background: var(--surface-2); border: 1px solid var(--border); font-size: clamp(16px, 2vw, 18px);
+  animation: rise .6s var(--ease) both; animation-delay: calc(var(--i, 0) * 140ms);
+}
+.tut-frase .rule-text{ font-size: inherit; }
+.tut-frase .f{ font-size: 20px; }
+.tut-escena .atoms{ max-width: 720px; width: 100%; margin: 0 auto; }
+.tut-final{ text-align: center; max-width: 640px; margin: 0 auto; }
+.tut-final .v-title{ animation: rise .6s var(--ease) both; }
+.tut-final .modelo{ display: inline-flex; margin-top: 16px; font-size: 22px; }
+.tut-final p{ color: var(--fg-2); margin: 12px 0 0; }
+.tut-final.ok .v-title{ color: var(--good); } .tut-final.bad .v-title{ color: var(--bad); }
+.tut-controles{ flex: none; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: center; padding: 8px 16px 10px; border-top: 1px solid var(--border); }
+.tut-controles .btn{ min-height: 40px; }
+.tut-velocidad{ display: flex; gap: 4px; }
+.tut-velocidad .pill-btn[aria-pressed="true"]{ background: var(--fg); color: var(--bg); border-color: transparent; }
+.tut-progreso{ height: 3px; background: var(--tint-3); }
+@media (max-width: 480px){
+  .tut{ height: auto; min-height: 100svh; }
+  .tut-escena{ min-height: 340px; flex: none; }
+  .tut-escena.arbol{ height: 46svh; }
+  .tut-frase{ grid-template-columns: auto 1fr; }
+  .tut-frase .f{ grid-column: 1 / -1; }
+  .tut-capitulos button{ padding: 6px 9px; font-size: 12px; }
+}
+
 /* ---------- accesibilidad y extras ---------- */
 .skip-link{
   position: fixed; left: 12px; top: 10px; z-index: 100; padding: 10px 16px; border-radius: 980px;
@@ -825,7 +959,10 @@ kbd{ font-family: var(--font); font-size: 11px; padding: 2px 6px; border-radius:
   @page{ margin: 14mm; }
   body{ font-size: 12pt; }
   .nav, .hero, #editor, #como, .skip-link, .toast, .tree-toolbar, .progress, .step-caption, .export, .legend-keys,
-  .section-sub{ display: none !important; }
+  .section-sub, .tree-extra, .arbol-texto{ display: none !important; }
+  .tt-scroll{ max-height: none; overflow: visible; }
+  .tt th{ position: static; }
+  .footer{ display: none; }
   .section{ padding: 0 0 18pt; }
   .section-head{ margin-bottom: 10pt; text-align: left; }
   .section-title{ font-size: 20pt; }

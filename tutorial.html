@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000" id="themeColor">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Tutorial animado: mira cómo una base de conocimiento en español se convierte en fórmulas y en un árbol semántico, paso a paso.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Tutorial del árbol semántico">
+  <meta property="og:description" content="Mira cómo unas frases en español se convierten en fórmulas y en un árbol semántico, paso a paso.">
+  <meta property="og:locale" content="es_MX">
+  <meta property="og:url" content="https://ineigfsr.github.io/Arbol-Semantico/tutorial.html">
+  <meta property="og:image" content="https://ineigfsr.github.io/Arbol-Semantico/assets/og-imagen.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <title>Tutorial del árbol semántico</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" media="print" onload="this.media='all'"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=STIX+Two+Text:ital,wght@0,500;0,600;1,600&family=JetBrains+Mono:wght@400&display=swap">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=STIX+Two+Text:ital,wght@0,500;0,600;1,600&family=JetBrains+Mono:wght@400&display=swap"></noscript>
+  <link rel="stylesheet" href="css/estilos.css">
+  <script>
+    (function () {
+      var d = document.documentElement, t = null;
+      d.classList.add("js");
+      try { t = localStorage.getItem("tema"); } catch (e) {}
+      if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+      d.dataset.theme = t;
+    })();
+  </script>
+</head>
+<body>
+
+  <nav class="nav scrolled" id="nav">
+    <div class="nav-inner">
+      <a href="index.html" class="brand"><img src="assets/favicon.svg" alt="" width="20" height="20"><span>Árbol semántico</span></a>
+      <div class="nav-links">
+        <a href="index.html#editor">Herramienta</a>
+        <a href="index.html#como">Cómo funciona</a>
+      </div>
+      <button class="icon-btn sm theme-btn" id="btnTema" type="button" aria-label="Cambiar a tema claro" title="Cambiar tema">
+        <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.2A8.5 8.5 0 1 1 9.8 3.5a6.8 6.8 0 0 0 10.7 10.7z"/></svg>
+        <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
+      </button>
+    </div>
+  </nav>
+
+  <main class="tut container wide">
+    <header class="tut-head">
+      <p class="eyebrow">Tutorial animado</p>
+      <h1 class="tut-title">De frases a un árbol, sin tocar nada.</h1>
+      <div class="tut-ejemplos" id="tutEjemplos" role="group" aria-label="Elige un ejemplo"></div>
+    </header>
+
+    <ol class="tut-capitulos" id="tutCapitulos" aria-label="Capítulos"></ol>
+
+    <section class="tut-panel" aria-label="Escena del tutorial">
+      <div class="tut-progreso"><div class="progress-bar" id="tutBarra"></div></div>
+      <p class="tut-narracion" id="tutNarracion" aria-live="polite"></p>
+
+      <div class="tut-escena" id="escenaTexto"></div>
+      <div class="tut-escena arbol" id="escenaArbol" tabindex="0" role="region" aria-label="Dibujo del árbol semántico" hidden>
+        <ul class="tree" id="tutArbol"></ul>
+      </div>
+
+      <div class="tut-controles">
+        <div class="player" role="group" aria-label="Reproducción">
+          <button class="icon-btn" id="tutPrev" type="button" aria-label="Paso anterior">
+            <svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>
+          </button>
+          <button class="icon-btn play" id="tutPlay" type="button" aria-label="Reproducir">
+            <svg class="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg>
+            <svg class="i-pause" viewBox="0 0 24 24"><path d="M8 5h3v14H8zM13 5h3v14h-3z"/></svg>
+          </button>
+          <button class="icon-btn" id="tutNext" type="button" aria-label="Paso siguiente">
+            <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+          <button class="pill-btn" id="tutReiniciar" type="button">Reiniciar</button>
+        </div>
+        <div class="tut-velocidad" role="group" aria-label="Velocidad">
+          <button class="pill-btn" type="button" data-vel="1.5" aria-pressed="false">Lento</button>
+          <button class="pill-btn" type="button" data-vel="1" aria-pressed="true">Normal</button>
+          <button class="pill-btn" type="button" data-vel="0.6" aria-pressed="false">Rápido</button>
+        </div>
+        <a class="btn btn-primary" id="tutProbar" href="index.html#editor">Probar con este ejemplo</a>
+      </div>
+    </section>
+  </main>
+
+  <!-- motor.js y vista.js son los mismos de la herramienta: el tutorial muestra el calculo real -->
+  <script src="js/motor.js" defer></script>
+  <script src="js/vista.js" defer></script>
+  <script src="js/tutorial.js" defer></script>
+</body>
+</html>

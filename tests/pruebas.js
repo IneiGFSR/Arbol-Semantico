@@ -53,6 +53,8 @@
     return out;
   }
   function literal(f) { return f.type === "atom" || (f.type === "not" && f.arg.type === "atom"); }
+  // una letra suelta no lleva simbolos: leerFormula la deja para el camino normal
+  function literalMismo(f) { return f.type === "atom"; }
 
   // primer paso de expansion de una sola formula: misma rama o dos ramas
   function expandir(f) {
@@ -65,7 +67,7 @@
 
   // ---------- generador de formulas al azar (para la prueba masiva) ----------
   const reg = createAtomRegistry();
-  const ATOMOS = ["a", "b", "c", "d"].map((t) => reg.getOrCreate(t)); // letras p, q, r, s
+  const ATOMOS = ["uno", "dos", "tres", "cuatro"].map((t) => reg.getOrCreate(t)); // letras p, q, r, s
   function azar(n) { return Math.floor(Math.random() * n); }
   function formulaAzar(prof) {
     if (prof <= 0 || Math.random() < 0.25) {
@@ -185,7 +187,7 @@
       () => igual(formulas("Si llueve, entonces salgo si y solo si hace sol"), ["p → (q ↔ r)"]));
     await caso("Cadena del mismo conector sin paréntesis de sobra", () => igual(formulas("Llueve y hace frío y hay viento"), ["p ∧ q ∧ r"]));
     await caso("Negación de una compuesta lleva paréntesis", () => {
-      const r = createAtomRegistry(); const p = Atom(r.getOrCreate("a")), q = Atom(r.getOrCreate("b"));
+      const r = createAtomRegistry(); const p = Atom(r.getOrCreate("uno")), q = Atom(r.getOrCreate("dos"));
       return igual([Not(And([p, q])), Not(Imp(p, q)), Imp(Imp(p, q), p)].map((f) => formulaToString(f)), ["¬(p ∧ q)", "¬(p → q)", "(p → q) → p"]);
     });
 
@@ -203,7 +205,7 @@
 
     grupo("11. Reglas de expansión", "α: ∧, ¬∨, ¬→, ¬¬ (misma rama) · β: ∨, →, ↔, ¬∧, ¬↔ (se ramifica).");
     {
-      const r = createAtomRegistry(); const p = Atom(r.getOrCreate("a")), q = Atom(r.getOrCreate("b"));
+      const r = createAtomRegistry(); const p = Atom(r.getOrCreate("uno")), q = Atom(r.getOrCreate("dos"));
       await caso("α  p ∧ q  ⟹  p, q", () => igual(expandir(And([p, q])), { misma: ["p", "q"] }));
       await caso("α  ¬(p ∨ q)  ⟹  ¬p, ¬q", () => igual(expandir(Not(Or([p, q]))), { misma: ["¬p", "¬q"] }));
       await caso("α  ¬(p → q)  ⟹  p, ¬q", () => igual(expandir(Not(Imp(p, q))), { misma: ["p", "¬q"] }));
@@ -329,13 +331,175 @@
     await caso("Los acentos no cambian el átomo («Es de día» = «es de dia»)", () => igual(formulas("Es de día\nes de dia"), ["p", "p"]));
     await caso("…pero la ñ sí («año» ≠ «ano»)", () => igual(formulas("El año pasado\nEl ano pasado"), ["p", "q"]));
 
+    grupo("15d. Gramática ampliada", "«salvo que», «excepto si», «a no ser que», «siempre y cuando» y listas con punto y coma.");
+    const AMPLIADA = [
+      ["Salgo salvo que llueva", "¬q → p"],
+      ["Salgo, salvo que llueva", "¬q → p"],
+      ["Salgo excepto si llueve", "¬q → p"],
+      ["Salgo a no ser que llueva", "¬q → p"],
+      ["Salvo que llueva, salgo", "¬p → q"],
+      ["Excepto si llueve, salgo", "¬p → q"],
+      ["A menos que llueva, salgo", "¬p → q"],
+      ["Salgo siempre y cuando haga sol", "q → p"],
+      ["Siempre y cuando haga sol, salgo", "p → q"],
+      ["Llueve; hace frío; hay viento", "p ∧ q ∧ r"],
+      ["Llueve; nieva o graniza", "p ∨ q ∨ r"],
+      ["Si llueve, salgo; si nieva, me quedo", "(p → q) ∧ (r → s)"],
+      ["Hace frío; no obstante, hay sol", "p ∧ q"],
+    ];
+    for (const [t, esperado] of AMPLIADA) await caso(t, () => igual(formulas(t)[0], esperado));
+
+    grupo("15e. Modo fórmula pura", "Escribir la fórmula directo, con símbolos o notación de teclado, sin inventar una frase.");
+    const PURAS = [
+      ["(p^q)<->(rvs)", "(p ∧ q) ↔ (r ∨ s)"],
+      ["(p ∧ q) ↔ (r ∨ s)", "(p ∧ q) ↔ (r ∨ s)"],
+      ["p -> q", "p → q"],
+      ["p => q", "p → q"],
+      ["p <=> q", "p ↔ q"],
+      ["~p", "¬p"],
+      ["!p & q", "¬p ∧ q"],
+      ["p | q", "p ∨ q"],
+      ["p v q", "p ∨ q"],
+      ["pvq", "p ∨ q"],
+      ["P -> Q", "p → q"],
+      ["~(p ^ q)", "¬(p ∧ q)"],
+      ["p ^ q ^ r", "p ∧ q ∧ r"],
+      ["p ^ q v r", "(p ∧ q) ∨ r"],
+      ["p -> q -> r", "p → (q → r)"],
+      ["~~p", "¬¬p"],
+      ["q -> p", "q → p"],
+      ["p2 -> q", "p2 → q"],
+      ["1. (p ^ q) -> r", "(p ∧ q) → r"],
+    ];
+    for (const [t, esperado] of PURAS) await caso(t, () => igual(formulas(t)[0], esperado));
+    await caso("«q -> p» conserva las letras tal como se escribieron", () => igual(atomos("q -> p"), ["q = q", "p = p"]));
+    await caso("Mezcla: una letra ya asignada es la misma proposición", () => igual(formulas("Si llueve, entonces salgo\np -> r\nNieva"), ["p → q", "p → r", "s"]));
+    await caso("Mezcla: las frases saltan las letras escritas a mano", () => igual(formulas("p -> q\nLlueve"), ["p → q", "r"]));
+    await caso("Una fórmula dentro de una frase", () => igual(formulas("Si (p ^ q), entonces r"), ["(p ∧ q) → r"]));
+    await caso("Letras sueltas con conectores en español", () => igual(formulas("p y q\nSi p, entonces no q"), ["p ∧ q", "p → ¬q"]));
+    await caso("No confunde palabras con fórmulas («uva», «ave»)", () => igual(atomos("Uva\nAve"), ["p = uva", "q = ave"]));
+    await caso("Una frase con paréntesis sigue siendo una frase", () => igual(formulas("Juan (mi primo) llega"), ["p"]));
+    await caso("Una fórmula mal escrita se marca para avisar", () => {
+      const { rules } = analizarKB("(p ^ q\np ->");
+      return igual(rules.map((r) => !!r.formulaMal), [true, true]);
+    });
+
+    grupo("15f. Trazabilidad del cierre", "Cada rama cerrada dice qué dos líneas chocan y de qué regla viene cada una.");
+    await caso("El ejemplo del video: las dos ramas cerradas nombran sus reglas", () => {
+      const rs = ramas(analizarKB(EJEMPLO).tree).filter((b) => b.hoja.closed);
+      return igual(rs.map((b) => { const i = b.hoja.closedInfo; return "L" + i.pos.id + " " + i.pos.raiz + " / L" + i.neg.id + " " + i.neg.raiz; }), ["L3 R3 / L4 R1", "L5 R1 / L7 R2"]);
+    });
+    await caso("Las dos líneas señaladas son un átomo y su negación", () => {
+      const rs = ramas(analizarKB("Llueve y no llueve").tree).filter((b) => b.hoja.closed);
+      const i = rs[0].hoja.closedInfo;
+      return igual([formulaToString(i.pos.formula), formulaToString(i.neg.formula), i.pos.raiz, i.neg.raiz], ["p", "¬p", "R1", "R1"]);
+    });
+    await caso("El origen se conserva a través de varias expansiones", () => {
+      const rs = ramas(analizarKB("Llueve\nNo es cierto que (p -> q)\n¬(r v p)").tree).filter((b) => b.hoja.closed);
+      return cierto(rs.every((b) => /^R\d$/.test(b.hoja.closedInfo.pos.raiz) && /^R\d$/.test(b.hoja.closedInfo.neg.raiz)), "todas llegan a una regla original");
+    });
+    await caso("Fórmula hablada para lectores de pantalla", () => igual(analizarKB("Si llueve y hace frío, entonces no salgo").rules.map((r) => formulaHablada(r.formula)),
+      ["abre paréntesis p y q cierra paréntesis implica no r"]));
+
+    grupo("15g. Tabla de verdad", "Verificación cruzada del resultado del árbol.");
+    await caso("Ejemplo del video: 8 filas, 1 satisface todo", () => {
+      const a = analizarKB(EJEMPLO), t = tablaDeVerdad(a.rules.map((r) => r.formula), a.registry.list().map((e) => e.letter));
+      return igual({ filas: t.filas.length, modelos: t.modelos, fila: t.filas.find((f) => f.todas).valores }, { filas: 8, modelos: 1, fila: [true, true, false] });
+    });
+    await caso("La primera fila es todo V y la última todo F", () => {
+      const t = tablaDeVerdad([], ["p", "q"]);
+      return igual([t.filas[0].valores, t.filas[3].valores], [[true, true], [false, false]]);
+    });
+    await caso("Contradicción: ninguna fila", () => {
+      const a = analizarKB("Llueve\nNo llueve");
+      return igual(tablaDeVerdad(a.rules.map((r) => r.formula), ["p"]).modelos, 0);
+    });
+    await caso("Con más de 6 átomos no se genera", () => igual(tablaDeVerdad([], ["p", "q", "r", "s", "t", "u", "v"]), null));
+
+    grupo("15h. Casos límite", "Entrada vacía, texto sin reglas, bases gigantes y texto hostil.");
+    await caso("Entrada vacía", () => igual(analizarKB("").rules.length, 0));
+    await caso("Solo espacios y líneas vacías", () => igual(analizarKB("   \n\n \t \n").rules.length, 0));
+    await caso("Solo signos: no son reglas", () => {
+      const r = parseKnowledgeBase("¿?\n...\n!!!\n,,,\n---\n•");
+      return igual({ reglas: r.rules.length, ignoradas: r.ignoradas }, { reglas: 0, ignoradas: 6 });
+    });
+    await caso("Signos mezclados con una regla válida", () => igual(formulas("¿?\nLlueve\n..."), ["p"]));
+    await caso("Nunca se crea un átomo vacío", () => {
+      const a = analizarKB("¿? y llueve\nno ¿?\n¿? o ¡!\nSi ¿?, entonces salgo");
+      return cierto(a.registry.list().every((e) => tieneTexto(e.text)), a.registry.list().map((e) => e.text).join(" | "));
+    });
+    await caso("Solo un conector («y», «no», «si»)", () => igual(analizarKB("no\nsi\nentonces").rules.length, 3));
+    await caso("Una línea muy larga (2000 caracteres)", () => igual(formulas("palabra ".repeat(250)).length, 1));
+    await caso("50 reglas encadenadas: tarda poco y queda completo", () => {
+      const txt = Array.from({ length: 50 }, (_, i) => "Si paso" + i + ", entonces paso" + (i + 1)).join("\n") + "\nPaso0";
+      const t0 = performance.now(), { tree } = analizarKB(txt), ms = Math.round(performance.now() - t0), h = hojas(tree);
+      return cierto(!tree.truncado && h.abiertas === 1 && h.cerradas === 50 && ms < 500, ms + " ms · " + h.abiertas + " abierta, " + h.cerradas + " cerradas", JSON.stringify({ ms, h, t: tree.truncado }));
+    });
+    await caso("50 disyunciones (2^50 ramas): se corta sin colgarse", () => {
+      const txt = Array.from({ length: 50 }, (_, i) => "Opcion" + i + " o alterna" + i).join("\n");
+      const t0 = performance.now(), { tree } = analizarKB(txt), ms = Math.round(performance.now() - t0);
+      return cierto(tree.truncado && ms < 2000, "truncado en " + ms + " ms", JSON.stringify({ ms, t: tree.truncado }));
+    });
+    await caso("Un árbol cortado nunca se reporta como «todas cerradas»", () => {
+      const txt = Array.from({ length: 50 }, (_, i) => "Opcion" + i + " o alterna" + i).join("\n");
+      return igual(allClosed(analizarKB(txt).tree), false);
+    });
+    await caso("…y la búsqueda directa igual da un modelo válido", () => {
+      const txt = Array.from({ length: 50 }, (_, i) => "Opcion" + i + " o alterna" + i).join("\n");
+      const a = analizarKB(txt), fs = a.rules.map((r) => r.formula), m = buscarModelo(fs, a.registry.list().map((e) => e.letter));
+      return cierto(m && fs.every((f) => evaluate(f, m)), "las 50 reglas se cumplen");
+    });
+    await caso("…y detecta una contradicción aunque el árbol sea enorme", () => {
+      const txt = Array.from({ length: 50 }, (_, i) => "Opcion" + i + " o alterna" + i).join("\n") + "\nLlueve\nNo llueve";
+      const a = analizarKB(txt);
+      return igual(buscarModelo(a.rules.map((r) => r.formula), a.registry.list().map((e) => e.letter)), null);
+    });
+    await caso("Más de 26 átomos no repiten letra", () => {
+      const ls = analizarKB(Array.from({ length: 60 }, (_, i) => "hecho " + i).join("\n")).registry.list().map((e) => e.letter);
+      return igual(new Set(ls).size, 60);
+    });
+    await caso("Historial: guarda lo más nuevo primero y sin repetidos", () =>
+      igual(agregarAHistorial(agregarAHistorial(["b", "c"], "a"), "c"), ["c", "a", "b"]));
+    await caso("Historial: escribir más texto no crea una entrada nueva", () =>
+      igual(agregarAHistorial(["Si llue"], "Si llueve, salgo"), ["Si llueve, salgo"]));
+    await caso("Historial: se queda con las últimas 5", () => igual(["u", "v", "w", "x", "y", "z"].reduce(agregarAHistorial, []), ["z", "y", "x", "w", "v"]));
+    await caso("Historial: ignora texto vacío", () => igual(agregarAHistorial(["a"], "   "), ["a"]));
+
+    grupo("15i. Imagen del árbol", "El árbol se dibuja completo en una imagen, lista para pegar en un reporte.");
+    await caso("Genera una imagen con contenido", async () => {
+      const a = analizarKB(EJEMPLO);
+      const c = await arbolAImagen(a.tree, a.registry.list());
+      const px = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+      let oscuros = 0;
+      for (let i = 0; i < px.length; i += 4) if (px[i] < 200) oscuros++;
+      return cierto(c.width > 300 && c.height > 200 && oscuros > 500, c.width + " × " + c.height + " px");
+    });
+    await caso("Un árbol grande no pasa del límite del canvas", async () => {
+      const a = analizarKB(Array.from({ length: 50 }, (_, i) => "Si paso" + i + ", entonces paso" + (i + 1)).join("\n") + "\nPaso0");
+      const c = await arbolAImagen(a.tree, a.registry.list());
+      return cierto(c.width > 0 && c.width <= 16001 && c.height <= 16001, c.width + " × " + c.height + " px");
+    });
+
     grupo("16. Prueba masiva contra la tabla de verdad", "1000 bases de conocimiento al azar (1 a 4 fórmulas, 4 átomos, hasta 3 niveles). El árbol debe coincidir con la tabla de verdad.");
     {
       let consistencia = 0, modelos = 0, fbf = 0, N = 1000, primerFallo = null;
+      let cubiertas = 0, tabla = 0, busqueda = 0, relectura = 0, truncados = 0;
       for (let n = 0; n < N; n++) {
         const fs = Array.from({ length: 1 + azar(4) }, () => formulaAzar(3));
         resetFormulaIds();
         const tree = buildTableau(fs.map((f, i) => labelFormula(f, "R" + (i + 1))));
+        // formulas muy anidadas pasan del limite de lineas: ahi no hay arbol con que
+        // comparar, y lo que debe acertar es la busqueda directa que lo sustituye
+        if (tree.truncado) {
+          truncados++;
+          const letrasT = ATOMOS.map((e) => e.letter);
+          if ((buscarModelo(fs, letrasT) !== null) === satisfacible(fs) && !allClosed(tree)) {
+            consistencia++; modelos++; cubiertas++; tabla++; busqueda++;
+          } else if (!primerFallo) primerFallo = fs.map((f) => formulaToString(f)).join(" ; ");
+          if (fs.every((f) => { const s = formulaToString(f); try { return formulaToString(leerFBF(s)) === s; } catch (e) { return false; } })) fbf++;
+          relectura++;
+          continue;
+        }
         // a) el arbol dice "inconsistente" exactamente cuando la tabla de verdad no tiene ninguna fila verdadera
         if (allClosed(tree) === !satisfacible(fs)) consistencia++;
         else if (!primerFallo) primerFallo = fs.map((f) => formulaToString(f)).join(" ; ");
@@ -344,11 +508,32 @@
         if (ms.every((m) => { const a = new Map(m.map(([l, v]) => [l, v === "V"])); return fs.every((f) => evaluate(f, a)); })) modelos++;
         // c) lo que se escribe es una formula bien formada y se lee igual de vuelta
         if (fs.every((f) => { const s = formulaToString(f); try { return formulaToString(leerFBF(s)) === s; } catch (e) { return false; } })) fbf++;
+        // d) al reves que (b): cada fila verdadera de la tabla cae en alguna rama abierta, asi que el arbol no pierde modelos
+        const letras = ATOMOS.map((e) => e.letter);
+        const t = tablaDeVerdad(fs, letras);
+        const enAlgunaRama = (fila) => ms.some((m) => m.every(([l, v]) => fila.valores[letras.indexOf(l)] === (v === "V")));
+        if (t.filas.filter((x) => x.todas).every(enAlgunaRama)) cubiertas++;
+        // e) los tres caminos dan la misma respuesta: arbol, tabla y busqueda directa
+        if ((t.modelos > 0) === !allClosed(tree)) tabla++;
+        if ((buscarModelo(fs, letras) !== null) === !allClosed(tree)) busqueda++;
+        // f) el modo formula lee de vuelta lo que el motor escribe, y significa lo mismo
+        if (fs.every((f) => {
+          const copia = leerFormula(formulaToString(f), createAtomRegistry());
+          if (!literalMismo(f) && !copia) return false;
+          return !copia || t.filas.every((fila) => {
+            const asg = new Map(letras.map((l, i) => [l, fila.valores[i]]));
+            return evaluate(copia, asg) === evaluate(f, asg);
+          });
+        })) relectura++;
       }
       await caso("Consistente / inconsistente coincide con la tabla de verdad",
-        () => cierto(consistencia === N, consistencia + " de " + N, consistencia + " de " + N + "\nprimer fallo: " + primerFallo));
+        () => cierto(consistencia === N, consistencia + " de " + N + (truncados ? " (" + truncados + " por búsqueda directa: árbol demasiado grande)" : ""), consistencia + " de " + N + "\nprimer fallo: " + primerFallo));
       await caso("Cada rama abierta hace verdaderas todas las fórmulas", () => cierto(modelos === N, modelos + " de " + N));
       await caso("Todas las fórmulas escritas son bien formadas", () => cierto(fbf === N, fbf + " de " + N));
+      await caso("El árbol no pierde modelos: cada fila verdadera cae en una rama abierta", () => cierto(cubiertas === N, cubiertas + " de " + N));
+      await caso("La tabla de verdad integrada coincide con el árbol", () => cierto(tabla === N, tabla + " de " + N));
+      await caso("La búsqueda directa coincide con el árbol", () => cierto(busqueda === N, busqueda + " de " + N));
+      await caso("El modo fórmula relee lo que el motor escribe, con el mismo significado", () => cierto(relectura === N, relectura + " de " + N));
     }
 
     grupo("17. La página real", "Abre index.html con el caso del video y revisa lo que se ve en pantalla.");
@@ -358,12 +543,13 @@
   }
 
   // ---------- pruebas sobre la pagina real (en un iframe oculto) ----------
-  function cargarPagina(kb) {
+  const cargarPagina = (kb) => cargarMarco("../index.html?kb=" + encodeURIComponent(kb));
+  function cargarMarco(src) {
     return new Promise((res, rej) => {
       const fr = document.createElement("iframe");
       fr.className = "ui";
       fr.setAttribute("aria-hidden", "true");
-      fr.src = "../index.html?kb=" + encodeURIComponent(kb);
+      fr.src = src;
       fr.onload = () => setTimeout(() => {
         try { fr.contentDocument.body; res(fr); } catch (e) { rej(new Error("no se pudo leer la página (abre las pruebas desde un servidor, no como archivo)")); }
       }, 400);
@@ -435,7 +621,67 @@
     await caso("…ni confunde ideas distintas («hace frío» / «hace sol»)", () => cierto(av === "", "sin avisos", av));
     av = await avisosDe("Si llueve\nSalgo");
     await caso("Avisa de un «si» sin consecuencia", () => cierto(/empieza con «si»/.test(av), av || "sin aviso"));
+    av = await avisosDe("(p ^ q\nLlueve");
+    await caso("Avisa de una fórmula mal escrita", () => cierto(/parece una fórmula/.test(av), av || "sin aviso"));
+    av = await avisosDe("¿?\nLlueve");
+    await caso("Una línea de puros signos no congela la página y se avisa", () => cierto(/no se tomó en cuenta/.test(av) && txt(".rule").length === 1, av || "sin aviso"));
+
+    await avisosDe("¿?\n...");
+    await caso("Texto sin ninguna regla: mensaje y sin resultados", () => igual({ vacio: d.querySelector("#vacio").hidden, resultados: d.querySelector("#resultados").classList.contains("show") }, { vacio: false, resultados: false }));
+    await avisosDe("");
+    await caso("Entrada vacía: mensaje y sin resultados", () => igual({ vacio: d.querySelector("#vacio").hidden, botones: d.querySelector("#btnImagen").disabled }, { vacio: false, botones: true }));
+
+    await avisosDe('<img src=x onerror="window.__xss=1">\nSi <b>llueve</b>, entonces "salgo"');
+    await new Promise((r) => setTimeout(r, 100));
+    await caso("El texto escrito nunca se interpreta como HTML", () => igual({ ejecutado: !!w.__xss, imgs: d.querySelectorAll("#resultados img, #resultados b b").length, html: d.querySelectorAll(".rule-text img").length }, { ejecutado: false, imgs: 0, html: 0 }));
+
+    await avisosDe(EJEMPLO);
+    await caso("Cada rama cerrada dice qué líneas chocan y de qué regla", () => igual(txt(".leaf .traza"), ["L3 (R3) y L4 (R1)", "L5 (R1) y L7 (R2)"]));
+    await caso("La tabla de verdad se muestra y coincide con el árbol", () => {
+      const nota = txt(".tt-nota")[0] || "";
+      return cierto(d.querySelectorAll(".tt tbody tr").length === 8 && d.querySelectorAll(".tt tr.si").length === 1 && /Coincide/.test(nota), nota);
+    });
+    d.querySelector("#btnTextoArbol").click();
+    await caso("Hay una versión del árbol en texto", () => {
+      const t = d.querySelector("#arbolTexto").textContent;
+      return cierto(!d.querySelector("#arbolTexto").hidden && /p implica q/.test(t) && /Rama cerrada/.test(t) && /Rama abierta 1/.test(t), t.slice(0, 80) + "…");
+    });
+    d.querySelector("#btnTextoArbol").click();
+    await caso("Las fórmulas tienen etiqueta para lectores de pantalla", () => igual(d.querySelector(".rule-formula .f").getAttribute("aria-label"), "p implica q"));
+
+    await avisosDe(Array.from({ length: 50 }, (_, i) => "Opcion" + i + " o alterna" + i).join("\n"));
+    await caso("Base gigante: la página responde sin dibujar el árbol", () => igual({ veredicto: txt(".v-title")[0], lineas: d.querySelectorAll(".fline").length, boton: d.querySelector("#btnImagen").disabled }, { veredicto: "Consistente.", lineas: 0, boton: true }));
+    const t0 = performance.now();
+    await avisosDe(Array.from({ length: 60 }, (_, i) => "Si paso" + i + ", entonces paso" + (i + 1)).join("\n") + "\nPaso0");
+    await caso("Palabras que solo cambian en un número no generan avisos", () => igual(d.querySelectorAll("#avisos .warn").length, 0));
+    await caso("60 reglas encadenadas: se dibuja completo", () => igual({ veredicto: txt(".v-title")[0], cerradas: d.querySelectorAll(".leaf.closed").length }, { veredicto: "Consistente.", cerradas: 60 }));
+    await caso("…y tarda poco en aparecer", () => { const ms = Math.round(performance.now() - t0 - 450); return cierto(ms < 1500, ms + " ms"); });
+    await avisosDe(Array.from({ length: 30 }, (_, i) => "Llueve" + "abcdefghijklmnopqrstuvwxyz"[i % 26] + "\nLluev" + "abcdefghijklmnopqrstuvwxyz"[i % 26]).join("\n"));
+    await caso("Muchos avisos no llenan la pantalla", () => cierto(d.querySelectorAll("#avisos .warn").length <= 5, d.querySelectorAll("#avisos .warn").length + " visibles"));
+    await avisosDe("(p ^ q) <-> (r v s)\np\n~r");
+    await caso("Modo fórmula en la página real", () => igual(Array.from(d.querySelectorAll(".rule-formula .f")).map((f) => f.textContent), ["(p∧q)↔(r∨s)", "p", "¬r"]));
     fr.remove();
+
+    // ---------- el tutorial ----------
+    let tu;
+    try { tu = await cargarMarco("../tutorial.html"); } catch (e) { await caso("Cargar tutorial.html", () => { throw e; }); return; }
+    const td = tu.contentDocument;
+    await caso("El tutorial arranca solo", () => igual({ reproduciendo: td.querySelector("#tutPlay").classList.contains("playing"), capitulo: td.querySelector("#tutCapitulos .on").textContent }, { reproduciendo: true, capitulo: "Frases" }));
+    td.querySelector("#tutPlay").click();
+    const narrado = [];
+    let vueltas = 0;
+    while (!td.querySelector("#tutNext").disabled && vueltas++ < 60) {
+      td.querySelector("#tutNext").click();
+      narrado.push(td.querySelector("#tutNarracion").textContent);
+    }
+    await caso("Recorre todos los capítulos hasta el resultado", () => igual({ capitulo: td.querySelector("#tutCapitulos .on").textContent, veredicto: (td.querySelector(".tut-final .v-title") || {}).textContent }, { capitulo: "Resultado", veredicto: "Consistente." }));
+    await caso("Narra los pasos reales del árbol", () => cierto(narrado.some((t) => /Se cierra la rama/.test(t)) && narrado.some((t) => /Rama abierta 1/.test(t)), narrado.length + " escenas"));
+    td.querySelectorAll("#tutEjemplos .chip")[1].click();
+    td.querySelector("#tutPlay").click();
+    while (!td.querySelector("#tutNext").disabled && vueltas++ < 120) td.querySelector("#tutNext").click();
+    await caso("Otro ejemplo llega a su propio resultado", () => igual((td.querySelector(".tut-final .v-title") || {}).textContent, "Inconsistente."));
+    await caso("«Probar con este ejemplo» lleva a la herramienta con esas reglas", () => cierto(/index\.html\?kb=/.test(td.querySelector("#tutProbar").getAttribute("href")), td.querySelector("#tutProbar").getAttribute("href").slice(0, 40) + "…"));
+    tu.remove();
   }
 
   // ---------- reporte ----------

@@ -11,6 +11,13 @@
   <meta property="og:title" content="Motor de inferencia proposicional">
   <meta property="og:description" content="Del lenguaje natural al árbol semántico: escribe reglas en español y comprueba si son consistentes.">
   <meta property="og:locale" content="es_MX">
+  <meta property="og:url" content="https://ineigfsr.github.io/Arbol-Semantico/">
+  <!-- WhatsApp y compañia necesitan la direccion completa de la imagen, no una relativa -->
+  <meta property="og:image" content="https://ineigfsr.github.io/Arbol-Semantico/assets/og-imagen.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Árbol semántico construyéndose paso a paso">
+  <meta name="twitter:card" content="summary_large_image">
   <title>Motor de inferencia proposicional</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -48,6 +55,7 @@
         <a href="#editor">Probar</a>
         <a href="#resultado">Resultado</a>
         <a href="#arbol-sec">Árbol</a>
+        <a href="tutorial.html">Tutorial</a>
         <a href="#como">Cómo funciona</a>
       </div>
       <button class="icon-btn sm theme-btn" id="btnTema" type="button" aria-label="Cambiar a tema claro" title="Cambiar tema">
@@ -67,7 +75,7 @@
       <p class="hero-sub reveal">Escribe reglas en español. El motor las traduce a lógica proposicional, construye el árbol y te dice si todas pueden ser verdaderas al mismo tiempo.</p>
       <div class="hero-cta reveal">
         <a class="btn btn-primary" href="#editor">Probar ahora</a>
-        <a class="link-more" href="#como">Cómo funciona <span aria-hidden="true">›</span></a>
+        <a class="link-more" href="tutorial.html">Ver el tutorial animado <span aria-hidden="true">›</span></a>
       </div>
     </div>
 
@@ -125,6 +133,8 @@
               <button class="btn btn-primary" id="btnAnalizar" type="button">Construir árbol</button>
             </div>
           </div>
+          <!-- las ultimas bases escritas (se guardan solo en este navegador) -->
+          <div class="historial" id="historial" aria-label="Bases de conocimiento recientes" hidden></div>
         </div>
         <p class="kbd-hint reveal">Se actualiza mientras escribes · <kbd>Ctrl</kbd> + <kbd>Enter</kbd> para ver el resultado</p>
       </div>
@@ -198,7 +208,7 @@
           <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
           <p class="step-caption" id="stepCaption" aria-live="polite"></p>
 
-          <div class="tree-scroll" id="treeScroll">
+          <div class="tree-scroll" id="treeScroll" tabindex="0" role="region" aria-label="Dibujo del árbol semántico. Hay una versión en texto con el botón «Ver como texto».">
             <ul class="tree" id="arbol"></ul>
           </div>
 
@@ -209,6 +219,22 @@
             <span><b>α</b> no ramifica · <b>β</b> ramifica</span>
             <span class="legend-keys"><kbd>←</kbd> <kbd>→</kbd> pasos · <kbd>Espacio</kbd> reproducir</span>
           </div>
+
+          <div class="tree-extra">
+            <button class="pill-btn" id="btnTextoArbol" type="button" aria-expanded="false" aria-controls="arbolTexto">Ver como texto</button>
+            <button class="pill-btn" id="btnImagen" type="button">Descargar imagen</button>
+            <button class="pill-btn" id="btnCopiarImagen" type="button">Copiar imagen</button>
+          </div>
+          <div class="arbol-texto" id="arbolTexto" hidden></div>
+        </div>
+
+        <!-- verificacion cruzada: el mismo resultado por otro camino -->
+        <div class="card tt-card reveal">
+          <div class="card-head">
+            <h3 class="card-title">Tabla de verdad</h3>
+            <p class="card-sub">La misma pregunta resuelta por otro camino: se prueban todas las combinaciones de valores.</p>
+          </div>
+          <div id="tablaVerdad"></div>
         </div>
       </div>
     </section>
@@ -246,6 +272,17 @@
           <h3 class="ref-title">También entiende</h3>
           <p class="ref-sub">Otras formas comunes de decir lo mismo. Los acentos y las mayúsculas no cambian el átomo.</p>
           <div class="also-grid" id="tambien"></div>
+          <div class="notacion">
+            <h4>¿Ya sabes lógica? Escribe la fórmula directo.</h4>
+            <p>Una línea como <code>(p ^ q) &lt;-&gt; (r v s)</code> se lee tal cual, sin inventar una frase. Puedes mezclarla con reglas en español: una letra ya asignada es la misma proposición.</p>
+            <div class="notacion-tabla">
+              <span><code>~p</code> <code>!p</code> <code>¬p</code></span>
+              <span><code>p ^ q</code> <code>p &amp; q</code> <code>p ∧ q</code></span>
+              <span><code>p v q</code> <code>p | q</code> <code>p ∨ q</code></span>
+              <span><code>p -&gt; q</code> <code>p =&gt; q</code> <code>p → q</code></span>
+              <span><code>p &lt;-&gt; q</code> <code>p &lt;=&gt; q</code> <code>p ↔ q</code></span>
+            </div>
+          </div>
         </div>
 
         <div class="rules-ref">
@@ -275,8 +312,10 @@
 
   <div class="toast" id="toast" role="status"></div>
 
-  <!-- motor.js: logica pura (Piezas 1, 2, 3). interfaz.js: conecta con la pantalla (Pieza 4) -->
+  <!-- motor.js: logica pura (Piezas 1, 2, 3). vista.js: formulas y arbol en HTML, compartido
+       con el tutorial. interfaz.js: conecta con la pantalla (Pieza 4) -->
   <script src="js/motor.js" defer></script>
+  <script src="js/vista.js" defer></script>
   <script src="js/interfaz.js" defer></script>
 </body>
 </html>

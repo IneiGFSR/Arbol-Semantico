@@ -16,6 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
     { nombre: "Conjunción", texto: "Si llueve y hace frío, entonces no salgo\nLlueve\nHace frío" },
     { nombre: "Bicondicional", texto: "Apruebo si y solo si estudio\nEstudio" },
     { nombre: "Disyunción", texto: "Es de día o llueve\nNo es de día" },
+    { nombre: "Fórmula pura", texto: "(p ^ q) <-> (r v s)\np\n~r" },
   ];
 
   const $ = (sel) => document.querySelector(sel);
@@ -28,74 +29,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const treeScroll = $("#treeScroll");
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
-  function escapeHtml(s) {
-    return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  }
-  function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
-  function plural(n, uno, varios) { return n + " " + (n === 1 ? uno : varios); }
-
-  // ---------- formulas con estilo ----------
-  // "p2" -> p con subindice 2
-  function letterHtml(letter) {
-    const m = letter.match(/^([a-z])(\d+)$/);
-    return m ? m[1] + "<sub>" + m[2] + "</sub>" : letter;
-  }
-  function atomHtml(entry) {
-    return '<span class="tok atom c' + (entry.index % 8) + '" data-atom="' + escapeHtml(entry.key) +
-      '" title="' + escapeHtml(entry.letter + " = " + cap(entry.text)) + '">' + letterHtml(entry.letter) + "</span>";
-  }
-  function tokenHtml(tok) {
-    if (tok.t === "atom") return atomHtml(tok.entry);
-    if (tok.t === "paren") return '<span class="tok paren">' + tok.v + "</span>";
-    return '<span class="tok op ' + tok.kind + '">' + tok.v + "</span>";
-  }
-  function fHtml(formula) {
-    return '<span class="f">' + formulaToTokens(formula).map(tokenHtml).join("") + "</span>";
-  }
-
-  // formulas de referencia escritas a mano ("¬(A ∨ B)"), para la seccion "Cómo funciona"
-  const OP_KIND = { "∧": "and", "∨": "or", "→": "imp", "↔": "iff", "¬": "not" };
-  function metaHtml(str) {
-    let out = "";
-    for (const ch of str) {
-      if (ch === " ") continue;
-      if (OP_KIND[ch]) out += '<span class="tok op ' + OP_KIND[ch] + '">' + ch + "</span>";
-      else if (ch === "(" || ch === ")") out += '<span class="tok paren">' + ch + "</span>";
-      else if ("pqr".includes(ch)) out += '<span class="tok atom c' + "pqr".indexOf(ch) + '">' + ch + "</span>";
-      else out += '<span class="tok atom meta">' + ch + "</span>";
-    }
-    return '<span class="f">' + out + "</span>";
-  }
-
-  // ---------- texto de la regla con cada proposicion resaltada en su color ----------
-  function ruleTextHtml(text, atoms) {
-    const byKey = new Map(atoms.map((e) => [e.key, e]));
-    // cada vocal acepta su version con o sin tilde, igual que atomKey en el motor
-    const VOCAL = { a: "[aáàä]", e: "[eéèë]", i: "[iíìï]", o: "[oóòö]", u: "[uúùü]" };
-    const sinTilde = (s) => s.normalize("NFD").replace(/[̀́̈]/g, "").normalize("NFC");
-    const alts = atoms.slice().sort((a, b) => b.text.length - a.text.length)
-      .map((e) => escapeRe(sinTilde(e.text)).replace(/[aeiou]/gi, (v) => VOCAL[v.toLowerCase()]).replace(/\s+/g, "\\s+")).join("|");
-    const conectores = "es condici[oó]n necesaria y suficiente para|es condici[oó]n suficiente para|es condici[oó]n necesaria para|" +
-      "si y solo si|s[oó]lo si|[uú]nicamente si|siempre que|a menos que|no es cierto que|no es verdad que|es falso que|" +
-      "basta que|es necesario que|para que|equivale a|implica|sin embargo|no obstante|aunque|o bien|" +
-      "cuando|si|entonces|no|ni|pero|y|o";
-    const re = new RegExp("(?<![\\p{L}\\p{N}])(?:(" + alts + ")|(" + conectores + "))(?![\\p{L}\\p{N}])", "giu");
-    let out = "", last = 0, m;
-    while ((m = re.exec(text))) {
-      out += escapeHtml(text.slice(last, m.index));
-      if (m[1]) {
-        const e = byKey.get(atomKey(m[1]));
-        out += e
-          ? '<span class="ph" style="--c:var(--a' + (e.index % 8) + ')" data-atom="' + escapeHtml(e.key) + '">' + escapeHtml(m[1]) + "</span>"
-          : escapeHtml(m[1]);
-      } else {
-        out += '<span class="kw">' + escapeHtml(m[2]) + "</span>";
-      }
-      last = m.index + m[0].length;
-    }
-    return out + escapeHtml(text.slice(last));
-  }
 
   // ---------- resaltado de un atomo en toda la pagina ----------
   let hlKey = null;
@@ -133,51 +66,51 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ---------- Pieza 2: tabla de atomos ----------
   function renderAtomos(registry) {
-    $("#tbodyAtomos").innerHTML = registry.list().map((e, i) =>
-      '<div class="atom-card" style="--i:' + i + ";--c:var(--a" + (e.index % 8) + ')" data-atom="' + escapeHtml(e.key) + '">' +
-        atomHtml(e) +
-        '<div class="meaning">' + escapeHtml(cap(e.text)) + "<small>Proposición simple</small></div>" +
-      "</div>"
-    ).join("");
+    $("#tbodyAtomos").innerHTML = registry.list().map(atomoCardHtml).join("");
   }
 
   // ---------- Pieza 1: reglas y formulas ----------
   function renderReglas(rules, registry) {
     const atoms = registry.list();
     $("#listaReglas").innerHTML = rules.map((r, i) =>
-      '<div class="rule" style="--i:' + i + '">' +
+      '<div class="rule" style="--i:' + Math.min(i, 12) + '">' +
         '<span class="rule-id">R' + (i + 1) + "</span>" +
-        '<span class="rule-text">' + ruleTextHtml(r.text, atoms) + "</span>" +
+        '<span class="rule-text">' + (r.esFormula ? '<span class="plano">' + escapeHtml(r.text) + "</span>" : ruleTextHtml(r.text, atoms)) + "</span>" +
         '<span class="rule-formula"><span class="arrow" aria-hidden="true">→</span>' + fHtml(r.formula) + "</span>" +
       "</div>"
     ).join("");
   }
 
   // ---------- Pieza 3: veredicto y numeros ----------
-  function countLeaves(node, acc) {
-    acc = acc || { open: 0, closed: 0 };
-    if (node.open) acc.open++;
-    else if (node.closed) acc.closed++;
-    for (const c of (node.children || [])) countLeaves(c, acc);
-    return acc;
+  // estado: "ok", "bad" o "duda". Normalmente lo decide el arbol; si salio
+  // demasiado grande, lo decide buscarModelo (ver modeloGrande en analizar)
+  function estadoDe(tree) {
+    if (!tree.truncado) return allClosed(tree) ? "bad" : "ok";
+    return modeloGrande === undefined ? "duda" : modeloGrande === null ? "bad" : "ok";
   }
 
   let lastVerdict = null;
   function renderVeredicto(tree, rules, registry) {
     const el = $("#veredicto");
-    const cerrado = allClosed(tree);
-    const { open, closed } = countLeaves(tree);
+    const estado = estadoDe(tree);
+    const { open, closed } = contarHojas(tree);
     const n = rules.length;
-    el.className = "verdict reveal in " + (cerrado ? "bad" : "ok");
-    el.innerHTML = cerrado
-      ? '<div class="v-icon">✗</div><p class="v-kicker">La base de conocimiento es</p><h3 class="v-title">Inconsistente.</h3>' +
-        '<p class="v-text">' + (closed === 1 ? "La única rama se cierra" : "Las " + closed + " ramas se cierran") +
-        ": no existe ninguna asignación de valores que haga verdaderas las " + plural(n, "regla", "reglas") + " a la vez.</p>"
-      : '<div class="v-icon">✓</div><p class="v-kicker">La base de conocimiento es</p><h3 class="v-title">Consistente.</h3>' +
-        '<p class="v-text">' + (open === 1 ? "Queda una rama abierta" : "Quedan " + open + " ramas abiertas") +
-        ": existe al menos una asignación de valores que hace verdaderas las " + plural(n, "regla", "reglas") + ".</p>";
-    const key = cerrado ? "bad" : "ok";
-    if (key !== lastVerdict) { el.classList.add("pop"); lastVerdict = key; }
+    const reglas = plural(n, "regla", "reglas");
+    const texto = tree.truncado
+      ? { ok: "Se encontró una asignación de valores que hace verdaderas las " + reglas + ".",
+          bad: "Se revisaron las combinaciones posibles y ninguna hace verdaderas las " + reglas + " a la vez.",
+          duda: "Hay demasiadas combinaciones para revisarlas. Prueba con menos reglas." }[estado]
+      : estado === "bad"
+        ? (closed === 1 ? "La única rama se cierra" : "Las " + closed + " ramas se cierran") +
+          ": no existe ninguna asignación de valores que haga verdaderas las " + reglas + " a la vez."
+        : (open === 1 ? "Queda una rama abierta" : "Quedan " + open + " ramas abiertas") +
+          ": existe al menos una asignación de valores que hace verdaderas las " + reglas + ".";
+    const titulo = { ok: "Consistente.", bad: "Inconsistente.", duda: "Sin decidir." }[estado];
+    el.className = "verdict reveal in " + estado;
+    el.innerHTML = '<div class="v-icon">' + { ok: "✓", bad: "✗", duda: "?" }[estado] + "</div>" +
+      '<p class="v-kicker">La base de conocimiento es</p><h3 class="v-title">' + titulo + "</h3>" +
+      '<p class="v-text">' + texto + "</p>";
+    if (estado !== lastVerdict) { el.classList.add("pop"); lastVerdict = estado; }
 
     const stats = $("#stats");
     if (!stats.children.length) {
@@ -189,143 +122,87 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     countTo(stats.querySelector('[data-k="reglas"]'), n);
     countTo(stats.querySelector('[data-k="atomos"]'), registry.list().length);
-    countTo(stats.querySelector('[data-k="abiertas"]'), open);
-    countTo(stats.querySelector('[data-k="cerradas"]'), closed);
+    for (const [k, valor] of [["abiertas", open], ["cerradas", closed]]) {
+      const b = stats.querySelector('[data-k="' + k + '"]');
+      if (tree.truncado) { b.dataset.v = 0; b.textContent = "—"; } // sin arbol no hay ramas que contar
+      else countTo(b, valor);
+    }
   }
 
   // ---------- Pieza 3: dibujo del arbol + reproduccion paso a paso ----------
-  let steps = [];       // en orden: lineas (por id) y hojas (despues de la ultima linea de su rama)
-  let nodeLis = [];     // { li, first } para ocultar cada rama hasta que aparece su primera linea
-  let checks = [];      // { el, at } la palomita de "aplicada" sale cuando se usa por primera vez
+  let vistaArbol = null;  // lo que arma construirArbol (ver vista.js); null si no hay arbol que dibujar
   let stepIndex = 0;
-  let openCounter = 0;
-
-  function modelHtml(model) {
-    return model.length
-      ? model.map(([l, v]) => {
-          const e = currentAtoms.find((a) => a.letter === l);
-          return (v === "V" ? "" : '<span class="tok op not">¬</span>') + (e ? atomHtml(e) : l);
-        }).join('<span class="tok op sep">,</span>')
-      : "cualquier valor";
-  }
-
-  function renderNodeLi(node, parentMax) {
-    const li = document.createElement("li");
-    const box = document.createElement("div");
-    box.className = "node-box";
-    let maxId = parentMax;
-    for (const line of node.lines) {
-      const row = document.createElement("div");
-      row.className = "fline";
-      row.dataset.id = line.id;
-      const origin = line.fromId
-        ? '<span class="k">' + line.kind + "</span> " + line.rule + " · L" + line.fromId
-        : '<span class="k">' + escapeHtml(line.origin) + "</span>";
-      row.innerHTML =
-        '<span class="fid">L' + line.id + "</span>" + fHtml(line.formula) +
-        '<span class="fcheck" title="Fórmula ya aplicada">✓</span>' +
-        '<span class="forigin">' + origin + "</span>";
-      const ck = row.querySelector(".fcheck");
-      if (!line.applied) ck.remove();
-      else checks.push({ el: ck, id: line.id, at: Infinity });
-      box.appendChild(row);
-      steps.push({ kind: "line", order: line.id, el: row, line });
-      maxId = Math.max(maxId, line.id);
-    }
-    li.appendChild(box);
-    nodeLis.push({ li, first: node.lines.length ? node.lines[0].id : parentMax });
-
-    if (node.closed || node.open) {
-      const leaf = document.createElement("div");
-      if (node.closed) {
-        const e = currentAtoms.find((a) => a.letter === node.closedInfo.letter);
-        const a = e ? atomHtml(e) : node.closedInfo.letter;
-        leaf.className = "leaf closed";
-        leaf.innerHTML = '<span class="mark">✗</span>Rama cerrada<span class="sub"><span class="f">' + a +
-          '<span class="tok op word">y</span><span class="tok op not">¬</span>' + a + "</span></span>";
-      } else {
-        node.num = ++openCounter;
-        leaf.className = "leaf open";
-        leaf.innerHTML = '<span class="mark">✓</span>Rama abierta ' + node.num +
-          '<span class="sub"><span class="f">' + modelHtml(node.model) + "</span></span>";
-      }
-      li.appendChild(leaf);
-      steps.push({ kind: "leaf", order: maxId + 0.5, el: leaf, node });
-    } else if (node.children && node.children.length) {
-      const ul = document.createElement("ul");
-      for (const child of node.children) ul.appendChild(renderNodeLi(child, maxId));
-      li.appendChild(ul);
-    }
-    return li;
-  }
+  const totalPasos = () => (vistaArbol ? vistaArbol.steps.length : 0);
+  const BOTONES_ARBOL = ["#btnTextoArbol", "#btnImagen", "#btnCopiarImagen"];
 
   function renderArbol(tree) {
-    steps = []; nodeLis = []; checks = []; openCounter = 0;
-    arbol.innerHTML = "";
-    arbol.appendChild(renderNodeLi(tree, 0));
-    steps.sort((a, b) => a.order - b.order);
-    // cuando se usa por primera vez cada formula (para su palomita)
-    const checkById = new Map(checks.map((c) => [c.id, c]));
-    for (const s of steps) {
-      if (s.kind !== "line" || !s.line.fromId) continue;
-      const c = checkById.get(s.line.fromId);
-      if (c) c.at = Math.min(c.at, s.order);
-    }
     pause();
-    showStep(steps.length);
+    const hay = !tree.truncado;
+    treeScroll.hidden = !hay;
+    BOTONES_ARBOL.forEach((id) => { $(id).disabled = !hay; });
+    if (!hay) {
+      vistaArbol = null;
+      arbol.innerHTML = "";
+      showStep(0);
+      $("#stepCaption").textContent = "Este árbol pasaría de " + MAX_LINEAS_ARBOL.toLocaleString("es-MX") +
+        " líneas: ya no se podría leer ni dibujar. El resultado de arriba se calculó con una búsqueda directa de valores.";
+      cerrarTextoArbol();
+      return;
+    }
+    vistaArbol = construirArbol(arbol, tree, currentAtoms);
+    showStep(totalPasos());
     fitTree();
-  }
-
-  function captionFor(k) {
-    const total = steps.length;
-    if (k === 0) return '<span class="step-n">0 / ' + total + "</span> Presiona reproducir para construir el árbol desde el tronco.";
-    if (k === total) {
-      const { open, closed } = countLeaves(currentTree);
-      return '<span class="step-n">' + total + " / " + total + "</span> Árbol terminado: " +
-        '<b class="good">' + plural(open, "rama abierta", "ramas abiertas") + "</b> y " +
-        '<b class="bad">' + plural(closed, "cerrada", "cerradas") + "</b>.";
-    }
-    const s = steps[k - 1];
-    const n = '<span class="step-n">' + k + " / " + total + "</span> ";
-    if (s.kind === "leaf") {
-      return s.node.closed
-        ? n + '<b class="bad">✗ Se cierra la rama</b>: contiene un átomo y su negación.'
-        : n + '<b class="good">✓ Rama abierta ' + s.node.num + "</b>: solo quedan letras sin contradicción.";
-    }
-    const l = s.line;
-    if (!l.fromId) return n + "Premisa <b>" + escapeHtml(l.origin) + "</b>, se supone verdadera: " + fHtml(l.formula);
-    return n + "Regla <b>" + l.kind + " (" + l.rule + ")</b> sobre L" + l.fromId +
-      (l.kind === "β" ? ", abre una rama: " : ", se agrega a la rama: ") + fHtml(l.formula);
+    if (!$("#arbolTexto").hidden) $("#arbolTexto").innerHTML = arbolEnTextoHtml(tree, currentAtoms);
   }
 
   function showStep(k) {
-    stepIndex = Math.max(0, Math.min(k, steps.length));
-    const cur = stepIndex > 0 ? steps[stepIndex - 1].order : 0;
-    const playingView = stepIndex < steps.length;
-    for (const s of steps) {
-      s.el.classList.toggle("pend", s.order > cur);
-      s.el.classList.remove("current", "source");
-    }
-    for (const n of nodeLis) n.li.classList.toggle("pend", n.first > cur);
-    // el conector vertical hacia las ramas solo aparece cuando sale la primera rama
-    arbol.querySelectorAll("ul").forEach((ul) => ul.classList.toggle("pend", ul.firstElementChild.classList.contains("pend")));
-    for (const c of checks) c.el.classList.toggle("pend", c.at > cur);
-
-    if (playingView && stepIndex > 0) {
-      const s = steps[stepIndex - 1];
-      s.el.classList.add("current");
-      if (s.kind === "line" && s.line.fromId) {
-        const src = arbol.querySelector('.fline[data-id="' + s.line.fromId + '"]');
-        if (src) src.classList.add("source");
-      }
-      scrollTreeTo(s.el);
-    }
-    // el numero de paso queda aparte; el resto va junto para que se acomode como un solo texto
-    $("#stepCaption").innerHTML = captionFor(stepIndex).replace(/^(<span class="step-n">[^<]*<\/span>) ?(.*)$/s, '$1<span class="step-text">$2</span>');
-    $("#progressBar").style.width = (steps.length ? (stepIndex / steps.length) * 100 : 0) + "%";
+    stepIndex = Math.max(0, Math.min(k, totalPasos()));
+    const actual = vistaArbol ? mostrarPasoArbol(vistaArbol, stepIndex) : null;
+    if (actual) scrollTreeTo(actual);
+    $("#stepCaption").innerHTML = vistaArbol ? textoPasoArbol(vistaArbol, stepIndex) : "";
+    $("#progressBar").style.width = (totalPasos() ? (stepIndex / totalPasos()) * 100 : 0) + "%";
     $("#btnPrev").disabled = stepIndex === 0;
-    $("#btnNext").disabled = stepIndex === steps.length;
+    $("#btnNext").disabled = stepIndex === totalPasos();
   }
+
+  // version en texto del arbol, para lectores de pantalla o para copiarla
+  function cerrarTextoArbol() {
+    $("#arbolTexto").hidden = true;
+    $("#btnTextoArbol").setAttribute("aria-expanded", "false");
+    $("#btnTextoArbol").textContent = "Ver como texto";
+  }
+  $("#btnTextoArbol").addEventListener("click", () => {
+    const panel = $("#arbolTexto");
+    if (!panel.hidden) return cerrarTextoArbol();
+    panel.innerHTML = arbolEnTextoHtml(currentTree, currentAtoms);
+    panel.hidden = false;
+    $("#btnTextoArbol").setAttribute("aria-expanded", "true");
+    $("#btnTextoArbol").textContent = "Ocultar texto";
+  });
+
+  // el arbol como imagen: para bajarla o pegarla directo en un reporte
+  const imagenArbol = () => arbolAImagen(currentTree, currentAtoms)
+    .then((canvas) => new Promise((res) => canvas.toBlob(res, "image/png")));
+  $("#btnImagen").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    const blob = await imagenArbol();
+    if (!blob) return avisar("El árbol es demasiado grande para convertirlo en imagen");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "arbol-semantico.png";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    confirmarBoton(btn, "Descargada");
+  });
+  $("#btnCopiarImagen").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": imagenArbol() })]);
+      confirmarBoton(btn, "Copiada");
+    } catch (err) {
+      avisar("Este navegador no dejó copiar la imagen. Usa «Descargar imagen».");
+    }
+  });
 
   // mueve el scroll del contenedor (no de la pagina) para que se vea el paso actual
   function scrollTreeTo(el) {
@@ -339,30 +216,33 @@ document.addEventListener("DOMContentLoaded", () => {
   let timer = null;
   const btnPlay = $("#btnPlay");
   function play(speed) {
-    if (stepIndex >= steps.length) showStep(0);
+    if (!totalPasos()) return;
+    if (stepIndex >= totalPasos()) showStep(0);
     btnPlay.classList.add("playing");
     btnPlay.setAttribute("aria-label", "Pausar");
+    $("#stepCaption").setAttribute("aria-live", "off"); // no leer cada paso en voz alta mientras corre
     clearInterval(timer);
     timer = setInterval(() => {
       showStep(stepIndex + 1);
-      if (stepIndex >= steps.length) pause(); // al llegar al final el boton vuelve a "reproducir" de inmediato
-    }, speed || 950);
+      if (stepIndex >= totalPasos()) pause(); // al llegar al final el boton vuelve a "reproducir" de inmediato
+    }, speed || Math.max(90, Math.min(950, 30000 / totalPasos()))); // los arboles grandes van mas rapido
   }
   function pause() {
     clearInterval(timer); timer = null;
     btnPlay.classList.remove("playing");
     btnPlay.setAttribute("aria-label", "Reproducir");
+    $("#stepCaption").setAttribute("aria-live", "polite");
   }
   btnPlay.addEventListener("click", () => (timer ? pause() : play()));
   $("#btnPrev").addEventListener("click", () => { pause(); showStep(stepIndex - 1); });
   $("#btnNext").addEventListener("click", () => { pause(); showStep(stepIndex + 1); });
-  $("#btnTodo").addEventListener("click", () => { pause(); showStep(steps.length); });
+  $("#btnTodo").addEventListener("click", () => { pause(); showStep(totalPasos()); });
 
   // atajos de teclado mientras el arbol esta en pantalla: ← → pasos, espacio reproduce
   let treeVisible = false;
   new IntersectionObserver((en) => { treeVisible = en[0].isIntersecting; }, { threshold: 0.25 }).observe($(".tree-card"));
   document.addEventListener("keydown", (e) => {
-    if (!treeVisible || e.ctrlKey || e.metaKey || e.altKey || !steps.length) return;
+    if (!treeVisible || e.ctrlKey || e.metaKey || e.altKey || !totalPasos()) return;
     const t = e.target;
     if (t.tagName === "TEXTAREA" || t.tagName === "INPUT" || t.isContentEditable) return;
     if (e.key === "ArrowRight") { e.preventDefault(); pause(); showStep(stepIndex + 1); }
@@ -393,13 +273,26 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderModelos(tree, rules, registry) {
     const cont = $("#modelos");
     const leaves = [];
-    (function walk(n) { if (n.open) leaves.push(n); (n.children || []).forEach(walk); })(tree);
+    if (tree.truncado) {
+      // sin arbol no hay ramas: se muestra la asignacion que encontro la busqueda
+      if (modeloGrande) {
+        leaves.push({ titulo: "Una asignación que funciona", model: Array.from(modeloGrande.entries())
+          .map(([l, v]) => [l, v ? "V" : "F"]).sort((a, b) => a[0].localeCompare(b[0])) });
+      }
+    } else {
+      (function walk(n) { if (n.open) leaves.push(n); (n.children || []).forEach(walk); })(tree);
+    }
 
     if (!leaves.length) {
+      const duda = estadoDe(tree) === "duda";
       cont.innerHTML =
-        '<div class="model model-empty"><div class="v-icon" style="margin:0 auto 14px;background:var(--bad-soft);color:var(--bad);box-shadow:inset 0 0 0 1.5px var(--bad-border)">✗</div>' +
-        "<h3>Ninguna rama queda abierta.</h3><p>Todas las ramas se cierran, así que la base de conocimiento es " +
-        '<b style="color:var(--bad)">inconsistente</b>: no hay forma de que todas las reglas sean verdaderas al mismo tiempo.</p></div>';
+        '<div class="model model-empty"><div class="v-icon" style="margin:0 auto 14px;background:var(--bad-soft);color:var(--bad);box-shadow:inset 0 0 0 1.5px var(--bad-border)">' + (duda ? "?" : "✗") + "</div>" +
+        (duda
+          ? "<h3>No se pudo decidir.</h3><p>Esta base tiene demasiadas combinaciones para revisarlas todas en el navegador.</p></div>"
+          : tree.truncado
+            ? "<h3>Ninguna asignación funciona.</h3><p>La base de conocimiento es " + '<b style="color:var(--bad)">inconsistente</b>: no hay forma de que todas las reglas sean verdaderas al mismo tiempo.</p></div>'
+            : "<h3>Ninguna rama queda abierta.</h3><p>Todas las ramas se cierran, así que la base de conocimiento es " +
+              '<b style="color:var(--bad)">inconsistente</b>: no hay forma de que todas las reglas sean verdaderas al mismo tiempo.</p></div>');
       return;
     }
 
@@ -416,19 +309,45 @@ document.addEventListener("DOMContentLoaded", () => {
       // comprobacion: con este modelo (lo que no aparece se toma como F) cada regla es verdadera
       const ok = rules.map((r, j) => '<span>R' + (j + 1) + " <b>" + (evaluate(r.formula, asg) ? "✓" : "✗") + "</b></span>").join("");
       const plain = leaf.model.map(([l, v]) => l + " = " + v).join(", ") || "sin restricciones";
-      return '<div class="model" style="--i:' + i + '">' +
-        '<div class="model-head"><h3>Rama abierta ' + leaf.num + '</h3><span class="badge good">' + escapeHtml(plain) + "</span></div>" +
+      return '<div class="model" style="--i:' + Math.min(i, 12) + '">' +
+        '<div class="model-head"><h3>' + (leaf.titulo || "Rama abierta " + leaf.num) + '</h3><span class="badge good">' + escapeHtml(plain) + "</span></div>" +
         '<div class="assign">' + tiles + "</div>" +
         '<div class="checks">' + ok + "</div>" +
       "</div>";
     }).join("");
   }
 
+  // ---------- tabla de verdad: verifica el arbol por un camino independiente ----------
+  function renderTabla(tree, rules) {
+    const caja = $("#tablaVerdad");
+    const letras = currentAtoms.map((e) => e.letter);
+    const t = tablaDeVerdad(rules.map((r) => r.formula), letras);
+    if (!t) {
+      const filas = letras.length <= 20 ? Math.pow(2, letras.length).toLocaleString("es-MX") : "2<sup>" + letras.length + "</sup>";
+      caja.innerHTML = '<p class="tt-nota">Con ' + letras.length + " átomos serían " + filas +
+        " filas, demasiadas para leerlas. La tabla se muestra hasta con " + TABLA_MAX_ATOMOS + " átomos.</p>";
+      return;
+    }
+    const coincide = (t.modelos > 0) === (estadoDe(tree) === "ok");
+    const encabezado = currentAtoms.map((e) => '<th scope="col">' + atomHtml(e) + "</th>").join("") +
+      rules.map((r, i) => '<th scope="col" class="tt-regla"><span>R' + (i + 1) + "</span>" + fHtml(r.formula) + "</th>").join("") +
+      '<th scope="col">Todas</th>';
+    const celda = (v) => '<td class="' + (v ? "v" : "fa") + '">' + (v ? "V" : "F") + "</td>";
+    const filas = t.filas.map((f) => '<tr' + (f.todas ? ' class="si"' : "") + ">" +
+      f.valores.map(celda).join("") + f.reglas.map(celda).join("") + celda(f.todas) + "</tr>").join("");
+    caja.innerHTML =
+      '<p class="tt-nota"><b>' + plural(t.modelos, "fila hace", "filas hacen") + "</b> verdaderas todas las reglas, de " + t.filas.length + ". " +
+      (coincide
+        ? '<span class="good">✓ Coincide con el árbol.</span>'
+        : '<span class="bad">✗ No coincide con el árbol: esto sería un error del motor.</span>') + "</p>" +
+      '<div class="tt-scroll" tabindex="0" role="region" aria-label="Tabla de verdad"><table class="tt"><thead><tr>' + encabezado + "</tr></thead><tbody>" + filas + "</tbody></table></div>";
+  }
+
   // ---------- editor: numeros de regla en el margen ----------
   function updateGutter() {
     let n = 0;
     gutter.innerHTML = entrada.value.split("\n").map((l) =>
-      l.trim() ? '<div class="r">R' + (++n) + "</div>" : "<div></div>"
+      tieneTexto(limpiarRegla(l)) ? '<div class="r">R' + (++n) + "</div>" : "<div></div>"
     ).join("");
     gutter.scrollTop = entrada.scrollTop;
   }
@@ -437,16 +356,20 @@ document.addEventListener("DOMContentLoaded", () => {
   // ---------- orquesta todo ----------
   let currentTree = null;
   let currentAtoms = [];
+  let modeloGrande = null; // resultado de buscarModelo cuando el arbol sale truncado
   function mostrarVacio(msg) {
     resultados.classList.remove("show");
     vacio.hidden = false;
     vacio.textContent = msg;
     editorMeta.textContent = "";
     arbol.innerHTML = "";
-    steps = [];
+    vistaArbol = null;
     showStep(0);
     $("#stepCaption").textContent = "Aquí aparecerá el árbol semántico.";
     $("#modelos").innerHTML = "";
+    $("#tablaVerdad").innerHTML = "";
+    BOTONES_ARBOL.forEach((id) => { $(id).disabled = true; });
+    cerrarTextoArbol();
     avisos.hidden = true;
   }
 
@@ -463,14 +386,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const distintas = A.map((w, i) => [w, B[i]]).filter(([u, v]) => u !== v);
     if (distintas.length !== 1) return false;
     const [u, v] = distintas[0];
+    if (/\d/.test(u) || /\d/.test(v)) return false; // "paso1" y "paso2" son cosas distintas, no otra forma
     let cp = 0;
     while (cp < u.length && cp < v.length && u[cp] === v[cp]) cp++;
     return cp >= 4 && cp >= Math.min(u.length, v.length) - 3;
   }
-  function renderAvisos(rules, registry) {
+  function renderAvisos(rules, registry, ignoradas) {
     const lista = [];
+    if (ignoradas) lista.push(plural(ignoradas, "línea no tiene", "líneas no tienen") + " ninguna palabra y no se tomó en cuenta.");
     rules.forEach((r, i) => {
       const t = r.text.trim();
+      if (r.formulaMal) {
+        lista.push("<b>R" + (i + 1) + "</b> parece una fórmula, pero no se pudo leer. Revisa los paréntesis y que cada operador tenga sus dos lados.");
+      }
       const inicio = t.match(/^(si|cuando|siempre que)\s/i);
       if (inicio && r.formula.type !== "imp" && r.formula.type !== "iff") {
         lista.push("<b>R" + (i + 1) + "</b> empieza con «" + inicio[1].toLowerCase() + "», pero no encontré qué pasa entonces, así que se tomó como un hecho. " +
@@ -501,7 +429,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
     }
-    avisos.innerHTML = lista.map((a) => '<div class="warn"><span>' + a + "</span></div>").join("");
+    // pocos a la vez: una lista larga de avisos estorba mas de lo que ayuda
+    const MAX_AVISOS = 4;
+    const visibles = lista.slice(0, MAX_AVISOS);
+    if (lista.length > MAX_AVISOS) visibles.push("Y " + plural(lista.length - MAX_AVISOS, "aviso más", "avisos más") + " parecidos.");
+    avisos.innerHTML = visibles.map((a) => '<div class="warn"><span>' + a + "</span></div>").join("");
     avisos.hidden = !lista.length;
   }
 
@@ -510,7 +442,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const texto = entrada.value;
     if (!texto.trim()) return mostrarVacio("Escribe tu base de conocimiento arriba para ver el análisis.");
 
-    const { rules, registry } = parseKnowledgeBase(texto);
+    const { rules, registry, ignoradas } = parseKnowledgeBase(texto);
     if (!rules.length) return mostrarVacio("No se reconoció ninguna regla válida en el texto.");
     vacio.hidden = true;
 
@@ -519,6 +451,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const tree = buildTableau(labeled);
     currentTree = tree;
     currentAtoms = registry.list();
+    modeloGrande = tree.truncado ? buscarModelo(rules.map((r) => r.formula), currentAtoms.map((e) => e.letter)) : null;
 
     editorMeta.textContent = plural(rules.length, "regla", "reglas") + " · " + plural(currentAtoms.length, "átomo", "átomos");
     resultados.classList.add("show");
@@ -527,10 +460,11 @@ document.addEventListener("DOMContentLoaded", () => {
     renderReglas(rules, registry);
     renderArbol(tree);
     renderModelos(tree, rules, registry);
-    renderAvisos(rules, registry);
+    renderTabla(tree, rules);
+    renderAvisos(rules, registry, ignoradas);
     hlKey = null;
 
-    document.querySelectorAll(".chip").forEach((c) => c.classList.toggle("on", EJEMPLOS[c.dataset.i].texto === texto));
+    document.querySelectorAll("#ejemplos .chip").forEach((c) => c.classList.toggle("on", EJEMPLOS[c.dataset.i].texto === texto));
   }
 
   // ejemplos
@@ -542,12 +476,55 @@ document.addEventListener("DOMContentLoaded", () => {
     analizar();
   });
 
-  let inputT;
-  entrada.addEventListener("input", () => { updateGutter(); clearTimeout(inputT); inputT = setTimeout(analizar, 220); });
+  // ---------- historial: las ultimas bases escritas, para no perderlas al recargar ----------
+  const CLAVE_HISTORIAL = "historial";
+  const enMarco = window.self !== window.top; // las pruebas abren la pagina en un iframe: no deben ensuciarlo
+  function leerHistorial() {
+    try {
+      const v = JSON.parse(localStorage.getItem(CLAVE_HISTORIAL) || "[]");
+      return Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
+    } catch (err) { return []; }
+  }
+  function escribirHistorial(lista) {
+    try { localStorage.setItem(CLAVE_HISTORIAL, JSON.stringify(lista)); } catch (err) {}
+    pintarHistorial(lista);
+  }
+  function pintarHistorial(lista) {
+    const cont = $("#historial");
+    cont.hidden = !lista.length;
+    if (!lista.length) { cont.innerHTML = ""; return; }
+    cont.innerHTML = '<span class="hist-etq">Recientes</span>' + lista.map((t, i) => {
+      const lineas = t.split("\n").filter(tieneTexto);
+      const primera = lineas[0].length > 30 ? lineas[0].slice(0, 30) + "…" : lineas[0];
+      return '<button class="chip" type="button" data-n="' + i + '" title="' + escapeHtml(t) + '">' + escapeHtml(primera) +
+        (lineas.length > 1 ? ' <span class="hist-n">+' + (lineas.length - 1) + "</span>" : "") + "</button>";
+    }).join("") + '<button class="hist-borrar" type="button">Borrar</button>';
+  }
+  function recordar() {
+    if (enMarco) return;
+    const t = entrada.value.trim();
+    if (!t || EJEMPLOS.some((e) => e.texto === t) || !parseKnowledgeBase(t).rules.length) return;
+    escribirHistorial(agregarAHistorial(leerHistorial(), t));
+  }
+  $("#historial").addEventListener("click", (e) => {
+    if (e.target.closest(".hist-borrar")) return escribirHistorial([]);
+    const chip = e.target.closest(".chip");
+    if (!chip) return;
+    entrada.value = leerHistorial()[chip.dataset.n] || "";
+    analizar();
+  });
+  window.addEventListener("pagehide", recordar); // si se recarga antes de que pase el tiempo de espera
+
+  let inputT, recordarT;
+  entrada.addEventListener("input", () => {
+    updateGutter();
+    clearTimeout(inputT); inputT = setTimeout(analizar, 220);
+    clearTimeout(recordarT); recordarT = setTimeout(recordar, 1500);
+  });
   entrada.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); irAResultado(); }
   });
-  function irAResultado() { analizar(); $("#resultado").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" }); }
+  function irAResultado() { analizar(); recordar(); $("#resultado").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" }); }
   $("#btnAnalizar").addEventListener("click", irAResultado);
   $("#btnLimpiar").addEventListener("click", () => { entrada.value = ""; analizar(); entrada.focus(); });
 
@@ -615,7 +592,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const TAMBIEN = [
     ["<b>Cuando</b> A, B", "A → B"], ["<b>Siempre que</b> A, B", "A → B"],
     ["A <b>si</b> B", "B → A"], ["A <b>solo si</b> B", "A → B"],
-    ["A <b>a menos que</b> B", "¬B → A"], ["A<b>, entonces</b> B", "A → B"],
+    ["A <b>a menos que</b> B", "¬B → A"], ["A <b>salvo que</b> B · <b>excepto si</b>", "¬B → A"],
+    ["A<b>, entonces</b> B", "A → B"], ["A<b>;</b> B<b>;</b> C", "A ∧ B ∧ C"],
     ["<b>Ni</b> A <b>ni</b> B", "¬A ∧ ¬B"], ["<b>No es cierto que</b> A", "¬A"],
     ["A<b>,</b> B <b>y</b> C", "A ∧ B ∧ C"], ["<b>O</b> A <b>o</b> B", "A ∨ B"],
     ["A <b>es condición suficiente para</b> B", "A → B"], ["A <b>es condición necesaria para</b> B", "B → A"],
@@ -652,10 +630,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // el arbol se reproduce solo la primera vez que entra en pantalla
   let autoplayed = false;
   new IntersectionObserver((entries, io) => {
-    if (entries[0].isIntersecting && !autoplayed && steps.length && !reduceMotion) {
+    if (entries[0].isIntersecting && !autoplayed && totalPasos() && !reduceMotion) {
       autoplayed = true;
       io.disconnect();
-      setTimeout(() => play(650), 500);
+      if (totalPasos() <= 120) setTimeout(() => play(650), 500); // uno enorme tardaria minutos: se deja completo
     }
   }, { threshold: 0.35 }).observe($(".tree-card"));
 
@@ -691,63 +669,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }, { passive: true });
 
-  // ---------- tema claro / oscuro ----------
-  // El <head> ya puso data-theme antes de pintar; aqui solo se cambia y se recuerda.
-  const raiz = document.documentElement;
-  const btnTema = $("#btnTema");
-  // el tema elegido se guarda aqui al instante: la animacion aplica el cambio un
-  // momento despues, y si se pulsa dos veces seguidas la segunda debe partir de
-  // lo que ya se eligio, no de lo que todavia se ve
-  let tema = raiz.dataset.theme === "light" ? "light" : "dark";
-  let transicion = null;
-  // pinta siempre el ultimo tema elegido (aunque la llamada llegue tarde)
-  function pintarTema() {
-    raiz.dataset.theme = tema;
-    $("#themeColor").content = tema === "light" ? "#fbfbfd" : "#000000";
-    btnTema.setAttribute("aria-label", tema === "light" ? "Cambiar a tema oscuro" : "Cambiar a tema claro");
-  }
-  function aplicarTema(t) { tema = t; pintarTema(); }
-  pintarTema();
-  btnTema.addEventListener("click", () => {
-    const sig = tema === "light" ? "dark" : "light";
-    tema = sig;
-    try { localStorage.setItem("tema", sig); } catch (err) {}
-    // si todavia va la animacion anterior, se termina y el cambio se aplica directo
-    if (transicion) { transicion.skipTransition(); pintarTema(); return; }
-    // el nuevo tema aparece como un circulo que crece desde el boton
-    const r = btnTema.getBoundingClientRect();
-    const x = r.left + r.width / 2, y = r.top + r.height / 2;
-    raiz.style.setProperty("--tx", x + "px");
-    raiz.style.setProperty("--ty", y + "px");
-    raiz.style.setProperty("--tr", Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y)) + "px");
-    if (document.startViewTransition && !reduceMotion && !document.hidden) {
-      const vt = document.startViewTransition(pintarTema);
-      transicion = vt;
-      // si la animacion se cancela (otro clic, pestaña oculta) el tema igual se
-      // aplica; ese aviso del navegador se ignora en lugar de salir como error
-      // (pintarTema se puede llamar de mas sin problema: siempre pinta el mismo tema)
-      vt.ready.catch(pintarTema);
-      vt.updateCallbackDone.catch(pintarTema);
-      vt.finished.catch(pintarTema).then(() => { pintarTema(); if (transicion === vt) transicion = null; });
-      // red de seguridad: si el navegador no llega a pintar (pestaña en segundo
-      // plano, equipo muy lento), a los 400 ms se omite la animacion y se aplica
-      setTimeout(() => {
-        if (raiz.dataset.theme !== tema) { vt.skipTransition(); pintarTema(); }
-      }, 400);
-    } else aplicarTema(sig);
-  });
-  // si la persona nunca eligio, se sigue al sistema cuando este cambia
-  matchMedia("(prefers-color-scheme: light)").addEventListener("change", (e) => {
-    let elegido = null;
-    try { elegido = localStorage.getItem("tema"); } catch (err) {}
-    if (!elegido) aplicarTema(e.matches ? "light" : "dark");
-  });
+  iniciarTema($("#btnTema"));
 
   // ---------- imprimir / PDF: el arbol completo y a lo ancho de la hoja ----------
   let zoomPantalla = 1;
   window.addEventListener("beforeprint", () => {
     pause();
-    showStep(steps.length);
+    showStep(totalPasos());
     zoomPantalla = zoom;
     arbol.style.setProperty("--zoom", 1);
     const w = arbol.firstElementChild ? arbol.firstElementChild.offsetWidth : 0;
@@ -756,8 +684,10 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("afterprint", () => setZoom(zoomPantalla));
   $("#btnImprimir").addEventListener("click", () => window.print());
 
-  // estado inicial: lo que venga en la URL, o el ejemplo de la profesora ya resuelto
+  // estado inicial: lo que venga en la URL, lo ultimo que se escribio, o el ejemplo
   const kb = new URLSearchParams(location.search).get("kb");
-  entrada.value = kb || EJEMPLOS[0].texto;
+  const recientes = leerHistorial();
+  pintarHistorial(recientes);
+  entrada.value = kb || recientes[0] || EJEMPLOS[0].texto;
   analizar();
 });
